@@ -1,0 +1,288 @@
+{
+  "id": "wf3",
+  "name": "Workflow 3: Lead-gen -> Cold Email -> Approval",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "Start",
+      "type": "n8n-nodes-base.start",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.hunter.io/v2/domain-search",
+        "authentication": "none",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "domain",
+              "value": "={{ $json.companyDomain }}"
+            },
+            {
+              "name": "api_key",
+              "value": "={{ $env.HUNTER_API_KEY }}"
+            }
+          ]
+        }
+      },
+      "name": "Hunter Domain Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const provider = ($env.LLM_PROVIDER || 'gemini').toLowerCase().trim();\nconst modelOverride = $env.LLM_MODEL || null;\n\nfor (let item of $input.all()) {\n  const jobTitle = item.json.jobTitle || '';\n  const company = item.json.company || '';\n  const contactName = item.json.contactName || 'Hiring Manager';\n  const coverLetter = item.json.cover_letter || '';\n\n  const prompt = `Write a short cold email for the role of ${jobTitle} at ${company}. Addressed to: ${contactName}. Use this cover letter context: ${coverLetter}`;\n\n  let responseData = null;\n\n  if (provider === 'gemini') {\n    const apiKey = $env.GEMINI_API_KEY;\n    const models = modelOverride ? [modelOverride] : ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];\n    for (let model of models) {\n      try {\n        responseData = await this.helpers.httpRequest({\n          method: 'POST',\n          url: `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,\n          body: { contents: [{ parts: [{ text: prompt }] }] },\n          json: true\n        });\n        break;\n      } catch (e) { continue; }\n    }\n  } else if (provider === 'openai') {\n    const apiKey = $env.OPENAI_API_KEY;\n    const baseUrl = ($env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\\/+$/, '');\n    const models = modelOverride ? [modelOverride] : ['gpt-4o-mini', 'gpt-4o'];\n    for (let model of models) {\n      try {\n        responseData = await this.helpers.httpRequest({\n          method: 'POST',\n          url: `${baseUrl}/chat/completions`,\n          headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },\n          body: { model, messages: [{ role: 'user', content: prompt }] },\n          json: true\n        });\n        break;\n      } catch (e) { continue; }\n    }\n  } else if (provider === 'claude' || provider === 'anthropic') {\n    const apiKey = $env.ANTHROPIC_API_KEY || $env.CLAUDE_API_KEY;\n    const models = modelOverride ? [modelOverride] : ['claude-3-5-haiku-20241022', 'claude-3-5-sonnet-20241022'];\n    for (let model of models) {\n      try {\n        responseData = await this.helpers.httpRequest({\n          method: 'POST',\n          url: 'https://api.anthropic.com/v1/messages',\n          headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },\n          body: { model, max_tokens: 2048, messages: [{ role: 'user', content: prompt }] },\n          json: true\n        });\n        break;\n      } catch (e) { continue; }\n    }\n  } else if (provider === 'ollama') {\n    const baseUrl = ($env.OLLAMA_BASE_URL || 'http://localhost:11434').replace(/\\/+$/, '');\n    const model = modelOverride || 'llama3.2';\n    try {\n      responseData = await this.helpers.httpRequest({\n        method: 'POST',\n        url: `${baseUrl}/api/generate`,\n        headers: { 'Content-Type': 'application/json' },\n        body: { model, prompt, stream: false },\n        json: true\n      });\n    } catch (e) {}\n  }\n\n  let emailDraft = '';\n  if (responseData) {\n    if (responseData.candidates && responseData.candidates[0] && responseData.candidates[0].content) {\n      emailDraft = responseData.candidates[0].content.parts[0].text || '';\n    } else if (responseData.choices && responseData.choices[0] && responseData.choices[0].message) {\n      emailDraft = responseData.choices[0].message.content || '';\n    } else if (responseData.content && responseData.content[0] && responseData.content[0].text) {\n      emailDraft = responseData.content[0].text || '';\n    } else if (responseData.response) {\n      emailDraft = responseData.response || '';\n    }\n  }\n  item.json.emailDraft = emailDraft;\n}\nreturn $input.all();"
+      },
+      "name": "LLM Draft Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"chat_id\": \"{{ $json.telegramChatId }}\",\n  \"text\": \"{{ $json.company }} - {{ $json.jobTitle }}\\nMatch: {{ $json.matchPct }}%\\nATS: {{ $json.atsPct }}%\\n\\nDraft:\\n{{ $json.emailDraft }}\",\n  \"reply_markup\": {\n    \"inline_keyboard\": [\n      [\n        {\n          \"text\": \"Approve\",\n          \"callback_data\": \"approve_{{ $json.jobId }}\"\n        },\n        {\n          \"text\": \"Reject\",\n          \"callback_data\": \"reject_{{ $json.jobId }}\"\n        }\n      ]\n    ]\n  }\n}"
+      },
+      "name": "Telegram Send Approval",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        600,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "path": "approve-job"
+      },
+      "name": "Wait For Approval",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        800,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.body.callback_query.data }}",
+        "rules": {
+          "rules": [
+            {
+              "operation": "startsWith",
+              "value2": "approve_"
+            },
+            {
+              "operation": "startsWith",
+              "value2": "reject_"
+            }
+          ]
+        }
+      },
+      "name": "Approval Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $json.fromEmail }}",
+        "toEmail": "={{ $json.toEmail }}",
+        "subject": "Application: {{ $json.jobTitle }}",
+        "text": "={{ $json.emailDraft }}",
+        "attachments": "/data/resume_final.pdf"
+      },
+      "name": "Send Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "fileSelector": "/data/dashboard.csv",
+        "dataPropertyName": "csv_line",
+        "options": {}
+      },
+      "name": "Log Sent",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1400,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "fileSelector": "/data/dashboard.csv",
+        "dataPropertyName": "csv_line",
+        "options": {}
+      },
+      "name": "Log Rejected",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "item.json.csv_line = `\\n${item.json.jobTitle},${item.json.company},${item.json.matchPct},${item.json.atsPct},SENT,${new Date().toISOString()}`;\nreturn item;"
+      },
+      "name": "Format Sent Log",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "item.json.csv_line = `\\n${item.json.jobTitle},${item.json.company},${item.json.matchPct},${item.json.atsPct},REJECTED,${new Date().toISOString()}`;\nreturn item;"
+      },
+      "name": "Format Rejected Log",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        100
+      ]
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Hunter Domain Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hunter Domain Search": {
+      "main": [
+        [
+          {
+            "node": "LLM Draft Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Draft Email": {
+      "main": [
+        [
+          {
+            "node": "Telegram Send Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Send Approval": {
+      "main": [
+        [
+          {
+            "node": "Wait For Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait For Approval": {
+      "main": [
+        [
+          {
+            "node": "Approval Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approval Router": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Rejected Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email": {
+      "main": [
+        [
+          {
+            "node": "Format Sent Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Sent Log": {
+      "main": [
+        [
+          {
+            "node": "Log Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Rejected Log": {
+      "main": [
+        [
+          {
+            "node": "Log Rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {}
+}

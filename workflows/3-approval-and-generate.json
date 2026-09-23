@@ -1,0 +1,400 @@
+{
+  "name": "Workflow 3: Telegram Approval & Generate",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "const provider = ($env.LLM_PROVIDER || 'gemini').toLowerCase().trim();\nconst modelOverride = $env.LLM_MODEL || null;\n\nfor (let item of $input.all()) {\n  const profileStr = item.json.masterProfile || '';\n  const desc = item.json.description || '';\n\n  const prompt = `Using ONLY the facts in this profile: ${profileStr}. Do not invent skills, employers, or metrics that are not present. Write: (1) three tailored resume bullets for the 'most relevant role' emphasizing overlap with this job description: ${desc}. (2) a cover letter, 250 words, specific to this company and role. Return JSON: {\"resume_bullets\": [...], \"cover_letter\": \"...\"}`;\n\n  let responseData = null;\n\n  if (provider === 'gemini') {\n    const apiKey = $env.GEMINI_API_KEY;\n    const models = modelOverride ? [modelOverride] : ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];\n    for (let model of models) {\n      try {\n        responseData = await this.helpers.httpRequest({\n          method: 'POST',\n          url: `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,\n          body: { contents: [{ parts: [{ text: prompt }] }], generationConfig: { response_mime_type: \"application/json\" } },\n          json: true\n        });\n        break;\n      } catch (e) { continue; }\n    }\n  } else if (provider === 'openai') {\n    const apiKey = $env.OPENAI_API_KEY;\n    const baseUrl = ($env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\\/+$/, '');\n    const models = modelOverride ? [modelOverride] : ['gpt-4o-mini', 'gpt-4o'];\n    for (let model of models) {\n      try {\n        responseData = await this.helpers.httpRequest({\n          method: 'POST',\n          url: `${baseUrl}/chat/completions`,\n          headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },\n          body: { model, messages: [{ role: 'user', content: prompt }], response_format: { type: 'json_object' } },\n          json: true\n        });\n        break;\n      } catch (e) { continue; }\n    }\n  } else if (provider === 'claude' || provider === 'anthropic') {\n    const apiKey = $env.ANTHROPIC_API_KEY || $env.CLAUDE_API_KEY;\n    const models = modelOverride ? [modelOverride] : ['claude-3-5-haiku-20241022', 'claude-3-5-sonnet-20241022'];\n    for (let model of models) {\n      try {\n        responseData = await this.helpers.httpRequest({\n          method: 'POST',\n          url: 'https://api.anthropic.com/v1/messages',\n          headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },\n          body: { model, max_tokens: 2048, messages: [{ role: 'user', content: prompt }] },\n          json: true\n        });\n        break;\n      } catch (e) { continue; }\n    }\n  } else if (provider === 'ollama') {\n    const baseUrl = ($env.OLLAMA_BASE_URL || 'http://localhost:11434').replace(/\\/+$/, '');\n    const model = modelOverride || 'llama3.2';\n    try {\n      responseData = await this.helpers.httpRequest({\n        method: 'POST',\n        url: `${baseUrl}/api/generate`,\n        headers: { 'Content-Type': 'application/json' },\n        body: { model, prompt, stream: false, format: 'json' },\n        json: true\n      });\n    } catch (e) {}\n  }\n\n  if (responseData) {\n    item.json = { ...item.json, ...responseData };\n  }\n}\nreturn $input.all();"
+      },
+      "name": "LLM Generate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const extractText = (item) => {\n  if (item.candidates && item.candidates[0] && item.candidates[0].content && item.candidates[0].content.parts) {\n    return item.candidates[0].content.parts[0].text || '';\n  }\n  if (item.choices && item.choices[0] && item.choices[0].message) {\n    return item.choices[0].message.content || '';\n  }\n  if (item.content && item.content[0] && item.content[0].text) {\n    return item.content[0].text || '';\n  }\n  if (item.response) {\n    return item.response || '';\n  }\n  return '';\n};\n\nconst originalItems = $('Load Data').all();\nfor (let i = 0; i < $input.all().length; i++) {\n  const original = originalItems[i].json;\n  const item = $input.all()[i];\n  let rawText = extractText(item.json);\n  let cleanText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();\n  let parsed = {};\n  try { parsed = JSON.parse(cleanText); } catch(e) {}\n  item.json = {\n    ...original,\n    resume_bullets: parsed.resume_bullets || [],\n    cover_letter: parsed.cover_letter || '',\n    draft: JSON.stringify({ resume_bullets: parsed.resume_bullets || [], cover_letter: parsed.cover_letter || '' })\n  };\n}\nreturn $input.all();"
+      },
+      "name": "Parse Generate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const provider = ($env.LLM_PROVIDER || 'gemini').toLowerCase().trim();\nconst modelOverride = $env.LLM_MODEL || null;\n\nfor (let item of $input.all()) {\n  let master = {};\n  try { master = JSON.parse(item.json.masterProfile); } catch(e) {}\n  const sample = master.writing_sample || \"\";\n  const prompt = \"Rewrite the following JSON object so the text values match the voice, rhythm and phrasing patterns of this writing sample: \" + sample + \". Return ONLY a valid JSON object with the exact same keys (resume_bullets array and cover_letter string). JSON to rewrite: \" + item.json.draft;\n\n  let responseData = null;\n\n  if (provider === 'gemini') {\n    const apiKey = $env.GEMINI_API_KEY;\n    const models = modelOverride ? [modelOverride] : ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];\n    for (let model of models) {\n      try {\n        responseData = await this.helpers.httpRequest({\n          method: 'POST',\n          url: `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,\n          body: { contents: [{ parts: [{ text: prompt }] }], generationConfig: { response_mime_type: \"application/json\" } },\n          json: true\n        });\n        break;\n      } catch (e) { continue; }\n    }\n  } else if (provider === 'openai') {\n    const apiKey = $env.OPENAI_API_KEY;\n    const baseUrl = ($env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\\/+$/, '');\n    const models = modelOverride ? [modelOverride] : ['gpt-4o-mini', 'gpt-4o'];\n    for (let model of models) {\n      try {\n        responseData = await this.helpers.httpRequest({\n          method: 'POST',\n          url: `${baseUrl}/chat/completions`,\n          headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },\n          body: { model, messages: [{ role: 'user', content: prompt }], response_format: { type: 'json_object' } },\n          json: true\n        });\n        break;\n      } catch (e) { continue; }\n    }\n  } else if (provider === 'claude' || provider === 'anthropic') {\n    const apiKey = $env.ANTHROPIC_API_KEY || $env.CLAUDE_API_KEY;\n    const models = modelOverride ? [modelOverride] : ['claude-3-5-haiku-20241022', 'claude-3-5-sonnet-20241022'];\n    for (let model of models) {\n      try {\n        responseData = await this.helpers.httpRequest({\n          method: 'POST',\n          url: 'https://api.anthropic.com/v1/messages',\n          headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },\n          body: { model, max_tokens: 2048, messages: [{ role: 'user', content: prompt }] },\n          json: true\n        });\n        break;\n      } catch (e) { continue; }\n    }\n  } else if (provider === 'ollama') {\n    const baseUrl = ($env.OLLAMA_BASE_URL || 'http://localhost:11434').replace(/\\/+$/, '');\n    const model = modelOverride || 'llama3.2';\n    try {\n      responseData = await this.helpers.httpRequest({\n        method: 'POST',\n        url: `${baseUrl}/api/generate`,\n        headers: { 'Content-Type': 'application/json' },\n        body: { model, prompt, stream: false, format: 'json' },\n        json: true\n      });\n    } catch (e) {}\n  }\n\n  if (responseData) {\n    item.json = { ...item.json, ...responseData };\n  }\n}\nreturn $input.all();"
+      },
+      "name": "LLM Humanize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const extractText = (item) => {\n  if (item.candidates && item.candidates[0] && item.candidates[0].content && item.candidates[0].content.parts) {\n    return item.candidates[0].content.parts[0].text || '';\n  }\n  if (item.choices && item.choices[0] && item.choices[0].message) {\n    return item.choices[0].message.content || '';\n  }\n  if (item.content && item.content[0] && item.content[0].text) {\n    return item.content[0].text || '';\n  }\n  if (item.response) {\n    return item.response || '';\n  }\n  return '';\n};\n\nconst originalItems = $('Parse Generate').all();\nfor (let i = 0; i < $input.all().length; i++) {\n  const original = originalItems[i].json;\n  const item = $input.all()[i];\n  let rawText = extractText(item.json);\n  let cleanText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();\n  let parsed = {};\n  try { parsed = JSON.parse(cleanText); } catch(e) {}\n  \n  item.json = {\n    ...original,\n    humanized_resume_bullets: parsed.resume_bullets || original.resume_bullets,\n    humanized_cover_letter: parsed.cover_letter || original.cover_letter,\n    draft: cleanText\n  };\n}\nreturn $input.all();"
+      },
+      "name": "Parse Humanize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "for(let item of $input.all()) {\n  const text = item.json.draft || '';\n  const clicheRegex = /\\b(delve|moreover|furthermore|leverage|seamless|testament to|unlock|robust|tapestry|elevate|boast)\\b/gi;\n  const hits = (text.match(clicheRegex) || []).length;\n  item.json.cliche_hits = hits;\n  item.json.needs_rewrite = hits > 2;\n}\nreturn $input.all();"
+      },
+      "name": "Cliché Scanner",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1800,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.needs_rewrite }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "Cliché Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        2000,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "for(let item of $input.all()) {\n  const jobDescription = item.json.description || '';\n  const resumeBullets = item.json.resume_bullets || [];\n  const words = jobDescription.split(/\\W+/).filter(w => w.length > 4);\n  const uniqueKeywords = [...new Set(words.map(w => w.toLowerCase()))];\n  const resumeText = resumeBullets.join(' ').toLowerCase();\n  if (uniqueKeywords.length === 0) {\n    item.json.ats_coverage_pct = 100;\n  } else {\n    const covered = uniqueKeywords.filter(k => resumeText.includes(k));\n    item.json.ats_coverage_pct = Math.round((covered.length / uniqueKeywords.length) * 100);\n  }\n}\nreturn $input.all();"
+      },
+      "name": "ATS Keyword Coverage",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nfor (let item of $input.all()) {\n  let profile = {};\n  try { profile = JSON.parse(item.json.masterProfile || '{}'); } catch(e) {}\n  const name = profile.name || 'Professional Candidate';\n  const email = profile.contact && profile.contact.email ? profile.contact.email : '';\n  const phone = profile.contact && profile.contact.phone ? profile.contact.phone : '';\n  const location = profile.locations && profile.locations.length > 0 ? profile.locations[0] : '';\n  const title = profile.target_titles && profile.target_titles.length > 0 ? profile.target_titles[0] : '';\n  \n  let bullets = item.json.humanized_resume_bullets || item.json.resume_bullets || [];\n  if (typeof bullets === 'string') bullets = [bullets];\n  if (!Array.isArray(bullets)) bullets = [];\n  \n  let bulletsHtml = bullets.map(b => `<li style=\"margin-bottom: 12px;\">${b.replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>')}</li>`).join('\\n');\n  let contentHtml = `\n    <div class=\"section\">\n      <h3 class=\"section-title\">TAILORED EXPERIENCE</h3>\n      <ul>\n        ${bulletsHtml}\n      </ul>\n    </div>\n  `;\n  \n  const htmlTemplate = `\n<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"UTF-8\">\n<style>\n  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');\n  body {\n    font-family: 'Inter', sans-serif;\n    color: #1f2937;\n    line-height: 1.6;\n    margin: 0;\n    padding: 0;\n    background-color: #ffffff;\n  }\n  .container {\n    max-width: 800px;\n    margin: 0 auto;\n    padding: 40px;\n  }\n  .header {\n    text-align: center;\n    border-bottom: 2px solid #2563eb;\n    padding-bottom: 20px;\n    margin-bottom: 30px;\n  }\n  .name {\n    font-size: 36px;\n    font-weight: 700;\n    color: #111827;\n    margin: 0 0 5px 0;\n    letter-spacing: 1px;\n    text-transform: uppercase;\n  }\n  .title {\n    font-size: 18px;\n    color: #4b5563;\n    font-weight: 600;\n    margin: 0 0 10px 0;\n    text-transform: uppercase;\n    letter-spacing: 2px;\n  }\n  .contact-info {\n    font-size: 13px;\n    color: #6b7280;\n  }\n  .contact-info span {\n    margin: 0 8px;\n  }\n  .section {\n    margin-top: 25px;\n  }\n  .section-title {\n    font-size: 16px;\n    color: #2563eb;\n    text-transform: uppercase;\n    border-bottom: 1px solid #e5e7eb;\n    padding-bottom: 5px;\n    margin-bottom: 15px;\n  }\n  .content {\n    font-size: 14px;\n  }\n  ul {\n    padding-left: 20px;\n    margin: 0;\n  }\n  strong {\n    color: #111827;\n  }\n</style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1 class=\"name\">${name}</h1>\n      <h2 class=\"title\">${title}</h2>\n      <div class=\"contact-info\">\n        <span>${email}</span> | <span>${phone}</span> | <span>${location}</span>\n      </div>\n    </div>\n    <div class=\"content\">${contentHtml}</div>\n  </div>\n</body>\n</html>\n  `;\n  item.json.hydrated_html = htmlTemplate;\n  fs.writeFileSync('/data/hydrated.html', htmlTemplate);\n}\nreturn $input.all();"
+      },
+      "name": "Hydrate HTML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "for (let item of $input.all()) {\n  item.json.pdf_status = 'HTML generated successfully. Run `node scripts/html-to-pdf.js data/hydrated.html data/resume_final.pdf` locally on your host machine to convert it to a PDF, as the n8n Docker container does not contain Headless Chrome dependencies.';\n}\nreturn $input.all();"
+      },
+      "name": "Generate PDF",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2600,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nlet jobs = [];\ntry { jobs = JSON.parse(fs.readFileSync('/data/pending_approval.json', 'utf8')); } catch(e) {}\nlet masterProfile = {};\ntry { masterProfile = JSON.parse(fs.readFileSync('/data/master-profile.json', 'utf8')); } catch(e) {}\n\nconst results = [];\nfor (let item of $input.all()) {\n  if (!item.json.update || !item.json.update.callback_query) continue;\n  const data = item.json.update.callback_query.data;\n  const id = data.split(':')[1];\n  const job = jobs.find(j => j.id === id);\n  if (job) {\n     results.push({ json: { ...job, update: item.json.update, masterProfile: JSON.stringify(masterProfile) } });\n  }\n}\nreturn results;"
+      },
+      "name": "Load Approved Job",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "authentication": "none",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"chat_id\": $env.TELEGRAM_CHAT_ID,\n  \"text\": '✅ RESUME GENERATED!\\n\\nI have successfully generated your resume and cover letter for ' + ($json.title || 'Unknown') + ' at ' + ($json.company && $json.company.display_name ? $json.company.display_name : 'Unknown') + '.\\n\\nCover Letter Draft:\\n\\n' + ($json.humanized_cover_letter || '') + '\\n\\nAction required: Run \\'node scripts/html-to-pdf.js data/hydrated.html data/resume_final.pdf\\' locally to get your PDF!'\n} }}"
+      },
+      "name": "Send Final Telegram",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2800,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "name": "Poll Telegram (Every 1m)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nlet offset = 0;\ntry { \n  const data = JSON.parse(fs.readFileSync('/data/telegram_offset.json', 'utf8'));\n  offset = data.offset || 0;\n} catch(e) {}\nreturn [{ json: { offset: offset } }];"
+      },
+      "name": "Get Offset",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://api.telegram.org/bot' + $env.TELEGRAM_BOT_TOKEN + '/getUpdates?offset=' + $json.offset + '&allowed_updates=[\"callback_query\"]' }}",
+        "authentication": "none"
+      },
+      "name": "Fetch Updates",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        400,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nlet offset = 0;\ntry { \n  const data = JSON.parse(fs.readFileSync('/data/telegram_offset.json', 'utf8'));\n  offset = data.offset || 0;\n} catch(e) {}\n\nconst results = [];\nconst items = $input.all();\n\nfor (let item of items) {\n  const response = item.json;\n  if (response.ok && response.result) {\n    for (let update of response.result) {\n      if (update.update_id >= offset) {\n        offset = update.update_id + 1;\n      }\n      if (update.callback_query && update.callback_query.data) {\n         if (update.callback_query.data.startsWith('APPLY:')) {\n            results.push({ json: { update: update } });\n         }\n      }\n    }\n  }\n}\n\nif (offset > 0) {\n  fs.writeFileSync('/data/telegram_offset.json', JSON.stringify({ offset: offset }));\n}\n\nreturn results;"
+      },
+      "name": "Parse Updates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        600,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/answerCallbackQuery",
+        "authentication": "none",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"callback_query_id\": $json.update.callback_query.id, \"text\": \"Generating Resume... Please wait (~30s).\" } }}"
+      },
+      "name": "Answer Callback",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        900,
+        -100
+      ],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "LLM Generate": {
+      "main": [
+        [
+          {
+            "node": "Parse Generate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Generate": {
+      "main": [
+        [
+          {
+            "node": "LLM Humanize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Humanize": {
+      "main": [
+        [
+          {
+            "node": "Parse Humanize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Humanize": {
+      "main": [
+        [
+          {
+            "node": "Cliché Scanner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cliché Scanner": {
+      "main": [
+        [
+          {
+            "node": "Cliché Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cliché Gate": {
+      "main": [
+        [
+          {
+            "node": "LLM Humanize",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ATS Keyword Coverage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ATS Keyword Coverage": {
+      "main": [
+        [
+          {
+            "node": "Hydrate HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hydrate HTML": {
+      "main": [
+        [
+          {
+            "node": "Generate PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Approved Job": {
+      "main": [
+        [
+          {
+            "node": "Answer Callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate PDF": {
+      "main": [
+        [
+          {
+            "node": "Send Final Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Poll Telegram (Every 1m)": {
+      "main": [
+        [
+          {
+            "node": "Get Offset",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Offset": {
+      "main": [
+        [
+          {
+            "node": "Fetch Updates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Updates": {
+      "main": [
+        [
+          {
+            "node": "Parse Updates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Updates": {
+      "main": [
+        [
+          {
+            "node": "Load Approved Job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Answer Callback": {
+      "main": [
+        [
+          {
+            "node": "LLM Generate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {}
+}

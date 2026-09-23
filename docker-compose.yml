@@ -1,0 +1,27 @@
+# docker-compose.yml
+services:
+  n8n:
+    image: n8nio/n8n
+    command: start --tunnel
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - GENERIC_TIMEZONE=America/Toronto
+      - N8N_DEFAULT_BINARY_DATA_MODE=filesystem
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=false
+      - N8N_RESTRICT_FILE_ACCESS_TO=/data;/workflows;/scripts;/home/node/data
+      - N8N_ENV_VARS_ALLOWED_EXPRESSIONS=GEMINI_API_KEY,HUNTER_API_KEY,TELEGRAM_BOT_TOKEN,TELEGRAM_CHAT_ID
+      - NODE_FUNCTION_ALLOW_BUILTIN=*
+    env_file:
+      - .env
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./data:/data
+      - ./data:/home/node/data
+      - ./data:/home/node/.n8n/data
+      - ./workflows:/workflows
+      - ./scripts:/scripts
+volumes:
+  n8n_data:

@@ -1,0 +1,422 @@
+{
+  "id": "wf1",
+  "name": "Workflow 1: Fetch -> Dedup -> Score",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 20
+            }
+          ]
+        }
+      },
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "fileSelector": "/data/master-profile.json",
+        "options": {}
+      },
+      "name": "Read Master Profile",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nlet profileObj = {};\ntry {\n  profileObj = JSON.parse(fs.readFileSync('/data/master-profile.json', 'utf8'));\n} catch (e) {\n  try {\n    profileObj = JSON.parse(fs.readFileSync('data/master-profile.json', 'utf8'));\n  } catch (e2) {\n    for (let item of $input.all()) {\n      if (item.json && item.json.name) profileObj = item.json;\n    }\n  }\n}\n\nreturn [{\n  json: {\n    profile: profileObj,\n    profileString: JSON.stringify(profileObj)\n  }\n}];"
+      },
+      "name": "Format Profile",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "fileSelector": "/data/seen_jobs.json",
+        "options": {}
+      },
+      "name": "Read Seen Jobs",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        600,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nlet profileObj = {};\ntry {\n  const profileItem = $('Format Profile').first();\n  if (profileItem && profileItem.json && profileItem.json.profile && profileItem.json.profile.name) {\n    profileObj = profileItem.json.profile;\n  }\n} catch(e) {}\n\nif (!profileObj.name || !profileObj.target_titles) {\n  try {\n    profileObj = JSON.parse(fs.readFileSync('/data/master-profile.json', 'utf8'));\n  } catch(e) {\n    try {\n      profileObj = JSON.parse(fs.readFileSync('data/master-profile.json', 'utf8'));\n    } catch(e2) {}\n  }\n}\nconst targetTitles = Array.isArray(profileObj.target_titles) && profileObj.target_titles.length > 0\n  ? profileObj.target_titles\n  : [$env.ADZUNA_SEARCH_ROLE || 'Data Analyst'];\n\nconst targetLocations = Array.isArray(profileObj.locations) && profileObj.locations.length > 0\n  ? profileObj.locations.map(l => l.split(',')[0].trim())\n  : [$env.ADZUNA_SEARCH_LOCATION || 'Toronto'];\n\n// Rotate role per execution to conserve Adzuna rate limits and monthly quota\nlet roleIdx = 0;\nconst idxFile = '/data/adzuna_role_idx.json';\ntry {\n  if (fs.existsSync(idxFile)) {\n    const data = JSON.parse(fs.readFileSync(idxFile, 'utf8'));\n    roleIdx = (data.idx || 0) % targetTitles.length;\n  }\n} catch(e) {}\n\ntry {\n  fs.writeFileSync(idxFile, JSON.stringify({ idx: (roleIdx + 1) % targetTitles.length }));\n} catch(e) {}\n\nconst currentRole = targetTitles[roleIdx];\nconst currentLoc = targetLocations[0] || 'Toronto';\n\n// 2 pages per run spaced out by 2.5s\nreturn [\n  { json: { role: currentRole, page: 1, where: currentLoc } },\n  { json: { role: currentRole, page: 2, where: currentLoc } }\n];"
+      },
+      "name": "Prepare Search Queries",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.adzuna.com/v1/api/jobs/ca/search/{{ $json.page }}",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "app_id",
+              "value": "={{ $env.ADZUNA_APP_ID }}"
+            },
+            {
+              "name": "app_key",
+              "value": "={{ $env.ADZUNA_APP_KEY }}"
+            },
+            {
+              "name": "what_phrase",
+              "value": "={{ $json.role }}"
+            },
+            {
+              "name": "where",
+              "value": "={{ $json.where }}"
+            },
+            {
+              "name": "sort_by",
+              "value": "date"
+            },
+            {
+              "name": "max_days_old",
+              "value": "14"
+            },
+            {
+              "name": "results_per_page",
+              "value": "20"
+            }
+          ]
+        },
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 2500
+            }
+          }
+        }
+      },
+      "name": "Adzuna Fetch",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        900,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "splitOutItems",
+        "fieldToSplitOut": "results",
+        "options": {}
+      },
+      "name": "Split Out",
+      "type": "n8n-nodes-base.itemLists",
+      "typeVersion": 3,
+      "position": [
+        1000,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = DateTime.now();\nreturn $input.all().filter(item => {\n  if(!item.json.created) return true;\n  const posted = DateTime.fromISO(item.json.created);\n  return now.diff(posted, 'hours').hours < 168;\n});"
+      },
+      "name": "Freshness Filter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nlet seen = [];\ntry { seen = JSON.parse(fs.readFileSync('/data/seen_jobs.json', 'utf8')); } catch(e) {}\nconst newItems = $input.all().filter(item => !seen.includes(item.json.id));\nconst newIds = newItems.map(i => i.json.id);\nif (newIds.length > 0) {\n  seen = seen.concat(newIds);\n  fs.writeFileSync('/data/seen_jobs.json', JSON.stringify(seen, null, 2));\n}\nreturn newItems;"
+      },
+      "name": "Dedup Filter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const provider = ($env.LLM_PROVIDER || 'gemini').toLowerCase().trim();\nconst modelOverride = $env.LLM_MODEL || null;\n\nconst fs = require('fs');\nlet profileObj = {};\ntry {\n  const profileItem = $('Format Profile').first();\n  if (profileItem && profileItem.json && profileItem.json.profile && profileItem.json.profile.name) {\n    profileObj = profileItem.json.profile;\n  }\n} catch(e) {}\n\nif (!profileObj.name || !profileObj.target_titles) {\n  try {\n    profileObj = JSON.parse(fs.readFileSync('/data/master-profile.json', 'utf8'));\n  } catch(e) {\n    try {\n      profileObj = JSON.parse(fs.readFileSync('data/master-profile.json', 'utf8'));\n    } catch(e2) {}\n  }\n}\n\nconst candidateName = profileObj.name || 'Candidate';\nconst targetTitlesArr = Array.isArray(profileObj.target_titles) ? profileObj.target_titles : [profileObj.target_titles || 'N/A'];\nconst candidateSkills = Array.isArray(profileObj.skills) ? profileObj.skills.join(', ') : (profileObj.skills || 'N/A');\nconst experienceSummary = Array.isArray(profileObj.experience) ? profileObj.experience.map(e => `${e.role} at ${e.company} (${e.dates})`).join('; ') : '';\nconst locationsStr = Array.isArray(profileObj.locations) ? profileObj.locations.join(', ') : (profileObj.locations || 'N/A');\n\nfor (let item of $input.all()) {\n  const title = item.json.title || \"\";\n  const desc = item.json.description || \"\";\n\n  const prompt = `You are a world-class AI career strategist, technical recruiter, and hiring manager evaluating job opportunities for candidate ${candidateName}.\n\nTARGET CANDIDATE CONTEXT:\n- Candidate Name: ${candidateName}\n- Target Roles: ${targetTitlesArr.join(', ')}\n- Targeted Locations / Work Preferences: ${locationsStr}\n- Core Professional Skills: ${candidateSkills}\n- Background Summary: ${profileObj.summary || ''}\n- Career History Overview: ${experienceSummary}\n\nEVALUATION RULES & MANDATES (UNIVERSAL FOR ANY INDUSTRY: TECH & NON-TECH):\n1. STRICT TITLE & CORE PROFESSION ALIGNMENT (ZERO-TOLERANCE FOR MISMATCHED ROLES):\n   - The candidate is EXCLUSIVELY targeting: ${targetTitlesArr.join(', ')}.\n   - You MUST evaluate whether the job title and primary function directly match the candidate's target roles.\n   - If the job title represents a DIFFERENT profession, functional area, or trade than the candidate's target roles (${targetTitlesArr.join(', ')}), you MUST assign:\n     * title_fit_score < 40 (or 0 if totally unrelated)\n     * overall_score <= 40\n     * should_apply = false\n   - If the job title IS a direct match or strong seniority variation of the target roles (e.g. Data Analyst, Senior Data Analyst, Business Intelligence Analyst for a candidate targeting Data Analyst), evaluate the skills, seniority, and domain fit fairly and award appropriate scores (70-95).\n   - HARD RULE: If title_fit_score < 50, overall_score MUST be <= 45 and should_apply MUST be false.\n\n2. ORGANIZATION QUALITY & REPUTATION:\n   - Categorize organization into: \"FAANG / Top Product\", \"Top Product / Enterprise\", \"Strong Startup\", \"Mid-tier\", or \"Low-quality / Agency\".\n   - Automatically penalize/reject mass recruiters, unknown staffing agencies, spam listings, or low-quality postings.\n\n3. SCORING PILLARS (0-100 scale each):\n   - title_fit_score: Direct alignment of the job title with candidate target roles: ${targetTitlesArr.join(', ')}.\n   - skills_fit_score: Direct overlap with candidate's actual professional skills: ${candidateSkills}.\n   - seniority_fit_score: Alignment with candidate experience level and tenure.\n   - domain_fit_score: Direct match or transferability to candidate demonstrated domains and background.\n\nOVERALL SCORE FORMULA:\noverall_score = Math.round((title_fit_score * 0.40) + (skills_fit_score * 0.35) + (seniority_fit_score * 0.15) + (domain_fit_score * 0.10))\nCRITICAL CONSTRAINT: If title_fit_score < 50, overall_score MUST be capped at <= 45 and should_apply MUST be false.\n\nJob Title: ${title}\nJob Description: ${desc}\n\nRespond ONLY with a valid JSON object matching this exact schema:\n{\n  \"overall_score\": number,\n  \"breakdown\": {\n    \"title_fit_score\": number,\n    \"skills_fit_score\": number,\n    \"seniority_fit_score\": number,\n    \"domain_fit_score\": number\n  },\n  \"should_apply\": boolean,\n  \"company_tier\": \"FAANG / Top Product / Top Product / Enterprise / Strong Startup / Mid-tier / Low-quality\",\n  \"work_type\": \"Remote / Hybrid / Onsite / Unknown\",\n  \"safety_tier\": \"Strongest Application / Stretch Opportunity / Safe Opportunity\",\n  \"priority_level\": \"High / Medium / Low\",\n  \"key_matched_skills\": [string],\n  \"missing_skills\": [string],\n  \"experience_match_summary\": string,\n  \"why_this_fits\": string,\n  \"disqualification_reasons\": [string],\n  \"compensation_insight\": string,\n  \"notes_concerns\": string,\n  \"reasoning\": string\n}`;\n\n  let responseData = null;\n\n  if (provider === 'gemini') {\n    const apiKey = $env.GEMINI_API_KEY;\n    const models = modelOverride ? [modelOverride] : ['gemini-3.5-flash-lite', 'gemini-flash-lite-latest', 'gemini-3.5-flash'];\n    for (let model of models) {\n      try {\n        responseData = await this.helpers.httpRequest({\n          method: 'POST',\n          url: `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,\n          body: { contents: [{ parts: [{ text: prompt }] }], generationConfig: { response_mime_type: \"application/json\" } },\n          json: true\n        });\n        if (responseData && responseData.candidates && responseData.candidates[0]) {\n          break;\n        }\n      } catch (e) {\n        continue;\n      }\n    }\n  } else if (provider === 'openai') {\n    const apiKey = $env.OPENAI_API_KEY;\n    const baseUrl = ($env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\\/+$/, '');\n    const models = modelOverride ? [modelOverride] : ['gpt-4o-mini', 'gpt-4o', 'gpt-3.5-turbo'];\n    for (let model of models) {\n      try {\n        responseData = await this.helpers.httpRequest({\n          method: 'POST',\n          url: `${baseUrl}/chat/completions`,\n          headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },\n          body: { model, messages: [{ role: 'user', content: prompt }], response_format: { type: 'json_object' } },\n          json: true\n        });\n        break;\n      } catch (e) { continue; }\n    }\n  }\n\n  if (responseData) {\n    item.json = { ...item.json, ...responseData };\n  } else {\n    item.json.llm_failed = true;\n  }\n  \n  // Pacing delay to avoid burst rate-limiting\n  await new Promise(r => setTimeout(r, 400));\n}\nreturn $input.all();"
+      },
+      "name": "LLM Match Score",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 10000
+    },
+    {
+      "parameters": {
+        "jsCode": "function evaluateDynamicTitleFit(jobTitle, targetTitles) {\n  if (!jobTitle) return 0;\n  if (!Array.isArray(targetTitles) || targetTitles.length === 0) return 70;\n  const cleanJob = jobTitle.toLowerCase().replace(/[^a-z0-9\\s]/g, ' ');\n  const jobTokens = new Set(cleanJob.split(/\\s+/).filter(w => w.length > 1));\n  let maxFit = 0;\n  for (const target of targetTitles) {\n    if (!target) continue;\n    const cleanTarget = target.toLowerCase().replace(/[^a-z0-9\\s]/g, ' ').trim();\n    if (cleanJob.includes(cleanTarget) || cleanTarget.includes(cleanJob)) {\n      maxFit = Math.max(maxFit, 95);\n      continue;\n    }\n    const targetTokens = cleanTarget.split(/\\s+/).filter(w => w.length > 1);\n    if (targetTokens.length === 0) continue;\n    const modifiers = new Set(['senior', 'sr', 'junior', 'jr', 'lead', 'principal', 'staff', 'associate', 'intermediate', 'ii', 'iii', 'iv', 'enterprise', 'b2b', 'corporate', 'commercial']);\n    const coreTokens = targetTokens.filter(t => !modifiers.has(t));\n    const tokensToCheck = coreTokens.length > 0 ? coreTokens : targetTokens;\n    const corePhrase = tokensToCheck.join(' ');\n    if (tokensToCheck.length >= 2 && cleanJob.includes(corePhrase)) {\n      let phraseScore = 90;\n      const isSeniorJob = cleanJob.includes('senior') || cleanJob.includes('sr') || cleanJob.includes('lead');\n      const isSeniorTarget = cleanTarget.includes('senior') || cleanTarget.includes('sr') || cleanTarget.includes('lead');\n      if (isSeniorJob === isSeniorTarget) phraseScore = 95;\n      if (phraseScore > maxFit) maxFit = phraseScore;\n      continue;\n    }\n    let matchedCount = 0;\n    for (const token of tokensToCheck) {\n      if (jobTokens.has(token)) matchedCount++;\n    }\n    const ratio = matchedCount / tokensToCheck.length;\n    let score = Math.round(ratio * 40);\n    if (matchedCount === tokensToCheck.length) score = 80;\n    if (score > maxFit) maxFit = score;\n  }\n  return maxFit;\n}\n\nconst fs = require('fs');\nlet profileObj = {};\ntry {\n  const profileItem = $('Format Profile').first();\n  if (profileItem && profileItem.json && profileItem.json.profile && profileItem.json.profile.name) {\n    profileObj = profileItem.json.profile;\n  }\n} catch(e) {}\n\nif (!profileObj.name || !profileObj.target_titles) {\n  try {\n    profileObj = JSON.parse(fs.readFileSync('/data/master-profile.json', 'utf8'));\n  } catch(e) {\n    try {\n      profileObj = JSON.parse(fs.readFileSync('data/master-profile.json', 'utf8'));\n    } catch(e2) {}\n  }\n}\n\nconst targetTitles = Array.isArray(profileObj.target_titles) && profileObj.target_titles.length > 0 \n  ? profileObj.target_titles \n  : ['Data Analyst'];\n\nconst extractText = (item) => {\n  if (item.candidates && item.candidates[0] && item.candidates[0].content && item.candidates[0].content.parts) {\n    return item.candidates[0].content.parts[0].text || '';\n  }\n  if (item.choices && item.choices[0] && item.choices[0].message) {\n    return item.choices[0].message.content || '';\n  }\n  if (item.content && item.content[0] && item.content[0].text) {\n    return item.content[0].text || '';\n  }\n  if (item.response) {\n    return item.response || '';\n  }\n  return '';\n};\n\nconst originalItems = $('Dedup Filter').all();\nfor (let i = 0; i < $input.all().length; i++) {\n  let original = originalItems[i] ? originalItems[i].json : {};\n  let item = $input.all()[i];\n  let title = (original.title || item.json.title || '').trim();\n  let desc = (original.description || item.json.description || '').toLowerCase();\n\n  const dynamicFit = evaluateDynamicTitleFit(title, targetTitles);\n  let rawText = extractText(item.json);\n  let parsed = null;\n\n  if (rawText) {\n    try {\n      let cleanText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();\n      parsed = JSON.parse(cleanText);\n    } catch (e) {}\n  }\n\n  if (parsed && typeof parsed.overall_score === 'number' && parsed.overall_score > 0) {\n    let score = parsed.overall_score;\n    let titleFit = parsed.breakdown?.title_fit_score ?? dynamicFit;\n\n    if (targetTitles.length > 0 && dynamicFit < 40) {\n      titleFit = Math.min(titleFit, dynamicFit);\n      score = Math.min(score, 35);\n    } else if (targetTitles.length > 0 && dynamicFit < 50) {\n      titleFit = Math.min(titleFit, dynamicFit);\n      score = Math.min(score, 45);\n    }\n    if (typeof titleFit === 'number' && titleFit < 50) {\n      score = Math.min(score, 45);\n    }\n\n    item.json = {\n      ...original,\n      score: score,\n      breakdown: parsed.breakdown || { title_fit_score: titleFit, skills_fit_score: score, seniority_fit_score: score, domain_fit_score: score },\n      should_apply: score >= 70 && titleFit >= 50,\n      company_tier: parsed.company_tier || 'Unknown',\n      work_type: parsed.work_type || 'Unknown',\n      safety_tier: parsed.safety_tier || (score >= 85 ? 'Strongest Application' : score >= 80 ? 'Safe Opportunity' : 'Stretch Opportunity'),\n      priority_level: parsed.priority_level || (score >= 85 ? 'High' : score >= 70 ? 'Medium' : 'Low'),\n      key_matched_skills: parsed.key_matched_skills || [],\n      missing_skills: parsed.missing_skills || [],\n      experience_match_summary: parsed.experience_match_summary || '',\n      why_this_fits: parsed.why_this_fits || '',\n      disqualification_reasons: parsed.disqualification_reasons || (titleFit < 50 ? [`Title mismatch: \"${title}\" does not align with target roles (${targetTitles.join(', ')}).`] : []),\n      compensation_insight: parsed.compensation_insight || 'N/A',\n      notes_concerns: parsed.notes_concerns || '',\n      reasoning: parsed.reasoning || '',\n      parse_error: false\n    };\n  } else {\n    // Dynamic Heuristic Fallback: Ensures genuine roles pass and non-targets fail even if LLM has temporary hiccup\n    const candidateSkills = (profileObj.skills || []).map(s => String(s).toLowerCase());\n    const fullText = `${title.toLowerCase()} ${desc}`;\n    const matchedSkills = candidateSkills.filter(s => s.length > 2 && fullText.includes(s));\n    const skillsScore = matchedSkills.length > 0 \n      ? Math.min(100, Math.round(60 + (matchedSkills.length / Math.min(candidateSkills.length, 5)) * 40)) \n      : 50;\n\n    let overall = Math.round((dynamicFit * 0.40) + (skillsScore * 0.35) + (80 * 0.15) + (70 * 0.10));\n    if (dynamicFit < 50) {\n      overall = Math.min(overall, 40);\n    }\n    const shouldApply = overall >= 70 && dynamicFit >= 50;\n\n    item.json = {\n      ...original,\n      score: overall,\n      breakdown: { title_fit_score: dynamicFit, skills_fit_score: skillsScore, seniority_fit_score: 80, domain_fit_score: 70 },\n      should_apply: shouldApply,\n      company_tier: 'Enterprise / Product',\n      work_type: 'Unknown',\n      safety_tier: overall >= 85 ? 'Strongest Application' : overall >= 80 ? 'Safe Opportunity' : 'Stretch Opportunity',\n      priority_level: overall >= 85 ? 'High' : overall >= 70 ? 'Medium' : 'Low',\n      key_matched_skills: matchedSkills.slice(0, 10).map(s => s.toUpperCase()),\n      missing_skills: [],\n      experience_match_summary: 'Evaluated via dynamic candidate profile alignment',\n      why_this_fits: shouldApply ? 'Strong alignment with target profession and profile skills' : 'Non-aligned profession',\n      disqualification_reasons: dynamicFit < 50 ? [`Title mismatch: \"${title}\" does not align with target roles (${targetTitles.join(', ')}).`] : [],\n      compensation_insight: 'Market standard',\n      notes_concerns: '',\n      reasoning: shouldApply \n        ? `Candidate target title match (${dynamicFit}%) with confirmed skills: ${matchedSkills.slice(0, 5).join(', ')}.`\n        : `Title mismatch: \"${title}\" does not match target roles (${targetTitles.join(', ')}).`,\n      parse_error: false\n    };\n  }\n}\n\nlet items = $input.all();\nitems.sort((a, b) => b.json.score - a.json.score);\nreturn items;"
+      },
+      "name": "Parse Score",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1800,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.score }}",
+              "operation": "largerEqual",
+              "value2": 70
+            }
+          ]
+        }
+      },
+      "name": "Score Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        2000,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nlet jobs = [];\ntry { jobs = JSON.parse(fs.readFileSync('/data/pending_approval.json', 'utf8')); } catch(e) {}\nfor (let item of $input.all()) {\n  jobs.push(item.json);\n}\nfs.writeFileSync('/data/pending_approval.json', JSON.stringify(jobs, null, 2));\nreturn $input.all();"
+      },
+      "name": "Log Pending Jobs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nlet jobs = [];\ntry { jobs = JSON.parse(fs.readFileSync('/data/rejected_jobs.json', 'utf8')); } catch(e) {}\nfor (let item of $input.all()) {\n  jobs.push(item.json);\n}\nfs.writeFileSync('/data/rejected_jobs.json', JSON.stringify(jobs, null, 2));\nreturn $input.all();"
+      },
+      "name": "Log Rejected Jobs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "authentication": "none",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"chat_id\": $env.TELEGRAM_CHAT_ID,\n  \"text\": '🎯 HIGH MATCH FOUND:\\n\\n' + ($json.title || 'Unknown') + '\\n🏢 ' + ($json.company_tier || 'Unknown') + ' | ' + ($json.company && $json.company.display_name ? $json.company.display_name : 'Unknown') + '\\n📈 Score: ' + ($json.score || 0) + '\\n\\nReasoning:\\n' + ($json.reasoning || ''),\n  \"reply_markup\": {\n    \"inline_keyboard\": [\n      [\n        {\n          \"text\": \"✅ Apply\",\n          \"callback_data\": 'APPLY:' + $json.id\n        },\n        {\n          \"text\": \"❌ Reject\",\n          \"callback_data\": 'REJECT:' + $json.id\n        }\n      ]\n    ]\n  }\n} }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 1000
+            }
+          }
+        }
+      },
+      "name": "Telegram Notify",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2400,
+        -100
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read Master Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Master Profile": {
+      "main": [
+        [
+          {
+            "node": "Format Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Profile": {
+      "main": [
+        [
+          {
+            "node": "Read Seen Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Seen Jobs": {
+      "main": [
+        [
+          {
+            "node": "Prepare Search Queries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Adzuna Fetch": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Freshness Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Freshness Filter": {
+      "main": [
+        [
+          {
+            "node": "Dedup Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dedup Filter": {
+      "main": [
+        [
+          {
+            "node": "LLM Match Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Match Score": {
+      "main": [
+        [
+          {
+            "node": "Parse Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Score": {
+      "main": [
+        [
+          {
+            "node": "Score Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score Gate": {
+      "main": [
+        [
+          {
+            "node": "Log Pending Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Rejected Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Pending Jobs": {
+      "main": [
+        [
+          {
+            "node": "Telegram Notify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Search Queries": {
+      "main": [
+        [
+          {
+            "node": "Adzuna Fetch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {}
+}

@@ -1,0 +1,464 @@
+{
+  "name": "Master Workflow: LinkedIn Apify + Adzuna Ingestion, Score & Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 20
+            }
+          ]
+        }
+      },
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -150
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "fileSelector": "/data/master-profile.json",
+        "options": {}
+      },
+      "name": "Read Master Profile",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "for (let item of $input.all()) {\n  let profileObj = item.json;\n  if (typeof profileObj === 'string') {\n    try { profileObj = JSON.parse(profileObj); } catch(e) {}\n  }\n  item.json = {\n    profile: profileObj,\n    profileString: JSON.stringify(profileObj)\n  };\n}\nreturn $input.all();"
+      },
+      "name": "Format Profile",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.adzuna.com/v1/api/jobs/ca/search/1",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "app_id",
+              "value": "={{ $env.ADZUNA_APP_ID }}"
+            },
+            {
+              "name": "app_key",
+              "value": "={{ $env.ADZUNA_APP_KEY }}"
+            },
+            {
+              "name": "what",
+              "value": "={{ $env.ADZUNA_SEARCH_ROLE || $('Format Profile').first().json.profile.target_titles[0] || 'Data Analyst' }}"
+            },
+            {
+              "name": "where",
+              "value": "={{ $env.ADZUNA_SEARCH_LOCATION || $('Format Profile').first().json.profile.locations[0] || 'Toronto' }}"
+            },
+            {
+              "name": "sort_by",
+              "value": "date"
+            },
+            {
+              "name": "max_days_old",
+              "value": "1"
+            },
+            {
+              "name": "results_per_page",
+              "value": "50"
+            }
+          ]
+        }
+      },
+      "name": "Adzuna Fetch",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        600,
+        -100
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "operation": "splitOutItems",
+        "fieldToSplitOut": "results",
+        "options": {}
+      },
+      "name": "Split Out Adzuna",
+      "type": "n8n-nodes-base.itemLists",
+      "typeVersion": 3,
+      "position": [
+        800,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.apify.com/v2/acts/BHzefUZlZRKWxkTck/run-sync-get-dataset-items?token={{ $env.APIFY_API_TOKEN }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contractType\": \"F\",\n  \"location\": \"{{ $env.ADZUNA_SEARCH_LOCATION || $('Format Profile').first().json.profile.locations[0] || 'Toronto' }}\",\n  \"publishedAt\": \"r86400\",\n  \"title\": \"{{ $env.ADZUNA_SEARCH_ROLE || $('Format Profile').first().json.profile.target_titles[0] || 'Data Analyst' }}\",\n  \"workType\": \"3\"\n}",
+        "options": {}
+      },
+      "name": "Apify LinkedIn Fetch",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        600,
+        150
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "let adzunaItems = [];\ntry { adzunaItems = $('Split Out Adzuna').all(); } catch(e) {}\nlet apifyItems = [];\ntry { apifyItems = $('Apify LinkedIn Fetch').all(); } catch(e) {}\n\nconst normalized = [];\n\nfor (let item of adzunaItems) {\n  const j = item.json || {};\n  if (!j.title) continue;\n  normalized.push({\n    json: {\n      id: `adzuna_${j.id}`,\n      source: 'adzuna',\n      title: j.title || '',\n      company: (j.company && j.company.display_name) || j.company || 'Unknown Company',\n      location: (j.location && j.location.display_name) || j.location || 'Toronto, Ontario',\n      created: j.created || new Date().toISOString(),\n      contract_type: j.contract_time || 'Full-time',\n      experience_level: 'Mid-Senior level',\n      apply_url: j.redirect_url || j.jobUrl || '',\n      job_url: j.redirect_url || j.jobUrl || '',\n      description: j.description || ''\n    }\n  });\n}\n\nfor (let item of apifyItems) {\n  const j = item.json || {};\n  if (!j.title) continue;\n  const rawId = j.id || (j.jobUrl ? j.jobUrl.split('/view/')[1] : null) || Math.random().toString(36).substring(7);\n  normalized.push({\n    json: {\n      id: `linkedin_${rawId}`,\n      source: 'linkedin',\n      title: j.title || '',\n      company: j.companyName || j.company || 'Unknown Company',\n      location: j.location || 'Toronto, Ontario',\n      created: j.postedTime || j.publishedAt || new Date().toISOString(),\n      contract_type: j.contractType || 'Full-time',\n      experience_level: j.experienceLevel || 'Mid-Senior level',\n      apply_url: j.applyUrl || j.jobUrl || '',\n      job_url: j.jobUrl || j.applyUrl || '',\n      description: j.description || ''\n    }\n  });\n}\n\nreturn normalized;"
+      },
+      "name": "Normalize Dual Jobs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = DateTime.now();\nreturn $input.all().filter(item => {\n  if(!item.json.created) return true;\n  const posted = DateTime.fromISO(item.json.created);\n  if (!posted.isValid) return true;\n  return now.diff(posted, 'hours').hours < 168;\n});"
+      },
+      "name": "Freshness Filter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "fileSelector": "/data/seen_jobs.json",
+        "options": {}
+      },
+      "name": "Read Seen Jobs",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1400,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nlet seen = [];\ntry { seen = JSON.parse(fs.readFileSync('/data/seen_jobs.json', 'utf8')); } catch(e) {}\nconst seenSet = new Set(seen.map(s => String(s).toLowerCase()));\nconst newItems = $input.all().filter(item => {\n  const idMatch = item.json.id && seenSet.has(String(item.json.id).toLowerCase());\n  const urlMatch = item.json.job_url && seenSet.has(String(item.json.job_url).toLowerCase());\n  return !idMatch && !urlMatch;\n});\nconst newIds = newItems.map(i => i.json.id).concat(newItems.map(i => i.json.job_url).filter(Boolean));\nif (newIds.length > 0) {\n  seen = [...new Set([...seen, ...newIds])];\n  fs.writeFileSync('/data/seen_jobs.json', JSON.stringify(seen, null, 2));\n}\nreturn newItems;"
+      },
+      "name": "Dedup Filter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const provider = ($env.LLM_PROVIDER || 'gemini').toLowerCase().trim();\nconst modelOverride = $env.LLM_MODEL || null;\nconst profileObj = $('Format Profile').first().json.profile || {};\nconst profileStr = $('Format Profile').first().json.profileString || '';\n\nconst candidateName = profileObj.name || 'Candidate';\nconst targetTitlesArr = Array.isArray(profileObj.target_titles) ? profileObj.target_titles : [profileObj.target_titles || 'N/A'];\nconst targetTitlesLower = targetTitlesArr.map(t => String(t).toLowerCase());\nconst candidateSkills = Array.isArray(profileObj.skills) ? profileObj.skills.join(', ') : (profileObj.skills || 'N/A');\nconst experienceSummary = Array.isArray(profileObj.experience) ? profileObj.experience.map(e => `${e.role} at ${e.company} (${e.dates})`).join('; ') : '';\n\nconst targetAsksManagerOrArchitect = targetTitlesLower.some(t => /\\b(manager|director|vp|head|architect|principal|chief)\\b/i.test(t));\nconst disqualifiedSeniorityRegex = /\\b(architect|enterprise architect|solution architect|data architect|principal architect|chief architect|director|manager|engineering manager|analytics manager|head of|vp|vice president|chief|executive|intern|co-op|trainee)\\b/i;\nconst disqualifiedFunctionRegex = /\\b(data engineer|data engineering|financial analyst|fp&a|software developer|software engineer|crm|devops|qa|qa tester|testing|test coordinator|buyer|recruiter|sales|accounting|privacy analyst|platform engineer|solution architect|systems architect|data architect|data entry|customer service|receptionist|accounting clerk|financial advisor|sales representative|cashier|helpdesk|administrative assistant|office manager|cook|driver)\\b/i;\n\nfor (let item of $input.all()) {\n  const title = item.json.title || \"\";\n  const desc = item.json.description || \"\";\n\n  if (!targetAsksManagerOrArchitect && disqualifiedSeniorityRegex.test(title)) {\n    const matchStr = title.match(disqualifiedSeniorityRegex)[0];\n    item.json.disqualified_deterministic = true;\n    item.json.deterministic_score = 0;\n    item.json.deterministic_reasoning = `Seniority mismatch: Job title \"${title}\" matches management/architect level keyword (\"${matchStr}\"). Target roles are individual contributor roles (${targetTitlesArr.join(', ')}).`;\n    continue;\n  }\n\n  if (disqualifiedFunctionRegex.test(title)) {\n    const matchStr = title.match(disqualifiedFunctionRegex)[0];\n    item.json.disqualified_deterministic = true;\n    item.json.deterministic_score = 0;\n    item.json.deterministic_reasoning = `Role mismatch: Job title \"${title}\" matches non-target role category (\"${matchStr}\"). Target roles: ${targetTitlesArr.join(', ')}.`;\n    continue;\n  }\n\n  const prompt = `You are a world-class AI career strategist, technical recruiter, and hiring manager evaluating job opportunities for candidate ${candidateName}.\n\nTARGET CANDIDATE CONTEXT:\n- Candidate Name: ${candidateName}\n- Target Roles: ${targetTitlesArr.join(', ')}\n- Targeted Locations / Work Preferences: ${Array.isArray(profileObj.locations) ? profileObj.locations.join(', ') : (profileObj.locations || 'N/A')}\n- Core Technical & Functional Skills: ${candidateSkills}\n- Background Summary: ${profileObj.summary || ''}\n- Career History Overview: ${experienceSummary}\n\nEVALUATION RULES & MANDATES:\n1. COMPANY TIERING & FILTERING:\n   - Categorize company into: \"FAANG / Top Product\", \"Top Product / Enterprise\", \"Strong Startup\", \"Mid-tier\", or \"Low-quality / Agency\".\n   - Prioritize high-engineering-bar product companies, top enterprise organizations (banks, telecoms, health systems, hydro/energy, Big 4 consulting), and funded YC/scaleup startups.\n   - Automatically penalize / reject mass recruiters, unknown staffing agencies, spam listings, or low-quality postings.\n\n2. STRICT ROLE, SKILL & DOMAIN ALIGNMENT:\n   - Evaluate on 4 SCORING PILLARS (0-100 scale each):\n     * Title & Role Alignment (30% weight): Is this a strong match for target roles: ${targetTitlesArr.join(', ')}? Must be IC role.\n     * Technical Stack Overlap (35% weight): Direct overlap with candidate's actual tools: ${candidateSkills} (SQL, CTEs, Power BI, DAX, Python, Pandas, Advanced Excel, Data Profiling, ETL/ELT, Data Modeling).\n     * Experience Tenure & Seniority Fit (15% weight): Alignment with candidate's ~5 years of professional analytics experience.\n     * Domain & Industry Relevance (20% weight): Direct match or transferability to candidate's demonstrated industries (Banking & Fraud Risk Analytics, Energy & Power Trading Analytics, Healthcare Data Analytics).\n   - If the job title or core duties are completely outside the candidate's target roles or skills (e.g. data entry, software developer, receptionist, sales), assign overall_score < 50.\n\nOVERALL SCORE FORMULA:\noverall_score = Math.round((title_fit_score * 0.30) + (skills_fit_score * 0.35) + (seniority_fit_score * 0.15) + (domain_fit_score * 0.20))\nIf title_fit_score < 50, overall_score MUST be <= 45.\n\n3. STRATEGIC SAFETY TIER:\n   - Categorize opportunity into one of:\n     * \"Strongest Application\": High fit (Score >= 85), high quality, strong hiring probability.\n     * \"Stretch Opportunity\": High upside target (Score 75-84) with ambitious growth potential.\n     * \"Safe Opportunity\": Direct 1-to-1 skill match (Score >= 80) maximizing callback rates.\n\nJob Title: ${title}\nJob Description: ${desc}\n\nRespond ONLY with a valid JSON object matching this exact schema:\n{\n  \"overall_score\": number,\n  \"breakdown\": {\n    \"title_fit_score\": number,\n    \"skills_fit_score\": number,\n    \"seniority_fit_score\": number,\n    \"domain_fit_score\": number\n  },\n  \"should_apply\": boolean,\n  \"company_tier\": \"FAANG / Top Product / Top Product / Enterprise / Strong Startup / Mid-tier / Low-quality\",\n  \"work_type\": \"Remote / Hybrid / Onsite / Unknown\",\n  \"safety_tier\": \"Strongest Application / Stretch Opportunity / Safe Opportunity\",\n  \"priority_level\": \"High / Medium / Low\",\n  \"key_matched_skills\": [string],\n  \"missing_skills\": [string],\n  \"experience_match_summary\": string,\n  \"why_this_fits\": string,\n  \"disqualification_reasons\": [string],\n  \"compensation_insight\": string,\n  \"notes_concerns\": string,\n  \"reasoning\": string\n}`;\n\n  let responseData = null;\n\n  if (provider === 'gemini') {\n    const apiKey = $env.GEMINI_API_KEY;\n    const models = modelOverride ? [modelOverride] : ['gemini-3.5-flash', 'gemini-3.6-flash'];\n    for (let model of models) {\n      try {\n        responseData = await this.helpers.httpRequest({\n          method: 'POST',\n          url: `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,\n          body: { contents: [{ parts: [{ text: prompt }] }], generationConfig: { response_mime_type: \"application/json\" } },\n          json: true\n        });\n        break;\n      } catch (e) { continue; }\n    }\n  } else if (provider === 'openai') {\n    const apiKey = $env.OPENAI_API_KEY;\n    const baseUrl = ($env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\\/+$/, '');\n    const models = modelOverride ? [modelOverride] : ['gpt-4o-mini', 'gpt-4o', 'gpt-3.5-turbo'];\n    for (let model of models) {\n      try {\n        responseData = await this.helpers.httpRequest({\n          method: 'POST',\n          url: `${baseUrl}/chat/completions`,\n          headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },\n          body: { model, messages: [{ role: 'user', content: prompt }], response_format: { type: 'json_object' } },\n          json: true\n        });\n        break;\n      } catch (e) { continue; }\n    }\n  } else if (provider === 'claude' || provider === 'anthropic') {\n    const apiKey = $env.ANTHROPIC_API_KEY || $env.CLAUDE_API_KEY;\n    const models = modelOverride ? [modelOverride] : ['claude-3-5-haiku-20241022', 'claude-3-5-sonnet-20241022'];\n    for (let model of models) {\n      try {\n        responseData = await this.helpers.httpRequest({\n          method: 'POST',\n          url: 'https://api.anthropic.com/v1/messages',\n          headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },\n          body: { model, max_tokens: 2048, messages: [{ role: 'user', content: prompt }] },\n          json: true\n        });\n        break;\n      } catch (e) { continue; }\n    }\n  } else if (provider === 'ollama') {\n    const baseUrl = ($env.OLLAMA_BASE_URL || 'http://localhost:11434').replace(/\\/+$/, '');\n    const model = modelOverride || 'llama3.2';\n    try {\n      responseData = await this.helpers.httpRequest({\n        method: 'POST',\n        url: `${baseUrl}/api/generate`,\n        headers: { 'Content-Type': 'application/json' },\n        body: { model, prompt, stream: false, format: 'json' },\n        json: true\n      });\n    } catch (e) {}\n  }\n\n  if (responseData) {\n    item.json = { ...item.json, ...responseData };\n  } else {\n    item.json.parse_error = true;\n    item.json.parse_error_msg = `All fallback models for provider '${provider}' failed or exhausted.`;\n  }\n}\nreturn $input.all();"
+      },
+      "name": "LLM Match Score",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1800,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 10000
+    },
+    {
+      "parameters": {
+        "jsCode": "function evaluateDynamicTitleFit(jobTitle, targetTitles) {\n  if (!jobTitle) return 0;\n  if (!Array.isArray(targetTitles) || targetTitles.length === 0) return 70;\n  const cleanJob = jobTitle.toLowerCase().replace(/[^a-z0-9\\s]/g, ' ');\n  const jobTokens = new Set(cleanJob.split(/\\s+/).filter(w => w.length > 1));\n  let maxFit = 0;\n  for (const target of targetTitles) {\n    if (!target) continue;\n    const cleanTarget = target.toLowerCase().replace(/[^a-z0-9\\s]/g, ' ');\n    if (cleanJob.includes(cleanTarget)) return 95;\n    const targetTokens = cleanTarget.split(/\\s+/).filter(w => w.length > 1);\n    if (targetTokens.length === 0) continue;\n    const modifiers = new Set(['senior', 'sr', 'junior', 'jr', 'lead', 'principal', 'staff', 'associate', 'intermediate', 'ii', 'iii', 'iv']);\n    const coreTokens = targetTokens.filter(t => !modifiers.has(t));\n    const tokensToCheck = coreTokens.length > 0 ? coreTokens : targetTokens;\n    let matchedCount = 0;\n    for (const token of tokensToCheck) {\n      if (jobTokens.has(token)) matchedCount++;\n    }\n    const ratio = matchedCount / tokensToCheck.length;\n    let score = Math.round(ratio * 90);\n    if (matchedCount === tokensToCheck.length) score = 90;\n    if (score > maxFit) maxFit = score;\n  }\n  return maxFit;\n}\n\nlet targetTitles = [];\ntry {\n  const profileItem = $('Format Profile').first();\n  targetTitles = profileItem?.json?.profile?.target_titles || [];\n} catch(e) {}\n\nconst originalItems = $('Dedup Filter').all();\nfor (let i = 0; i < $input.all().length; i++) {\n  let original = originalItems[i] ? originalItems[i].json : {};\n  let item = $input.all()[i];\n  let title = (original.title || item.json.title || '').trim();\n\n  if (item.json.disqualified_deterministic) {\n    item.json = {\n      ...original,\n      score: 0,\n      breakdown: { title_fit_score: 0, skills_fit_score: 0, seniority_fit_score: 0, domain_fit_score: 0 },\n      should_apply: false,\n      key_matched_skills: [],\n      missing_skills: [],\n      company_tier: 'Low-quality',\n      work_type: 'Unknown',\n      safety_tier: 'Stretch Opportunity',\n      priority_level: 'Low',\n      compensation_insight: 'N/A',\n      experience_match_summary: 'Disqualified',\n      why_this_fits: 'N/A',\n      notes_concerns: item.json.deterministic_reasoning,\n      disqualification_reasons: [item.json.deterministic_reasoning],\n      reasoning: item.json.deterministic_reasoning,\n      parse_error: false\n    };\n    continue;\n  }\n\n  try {\n    let rawText = '';\n    if (item.json.candidates && item.json.candidates[0] && item.json.candidates[0].content) {\n      rawText = item.json.candidates[0].content.parts[0].text || '';\n    } else if (item.json.choices && item.json.choices[0] && item.json.choices[0].message) {\n      rawText = item.json.choices[0].message.content || '';\n    } else if (item.json.content && item.json.content[0] && item.json.content[0].text) {\n      rawText = item.json.content[0].text || '';\n    } else if (item.json.response) {\n      rawText = item.json.response || '';\n    }\n\n    let cleanText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();\n    let parsed = JSON.parse(cleanText);\n    let score = typeof parsed.overall_score === 'number' ? parsed.overall_score : (parsed.score || 0);\n    let titleFit = parsed.breakdown?.title_fit_score;\n\n    const dynamicFit = evaluateDynamicTitleFit(title, targetTitles);\n    if (targetTitles.length > 0 && dynamicFit < 40) {\n      titleFit = Math.min(titleFit ?? 0, dynamicFit);\n      score = Math.min(score, 35);\n    } else if (targetTitles.length > 0 && dynamicFit < 50) {\n      titleFit = Math.min(titleFit ?? 45, dynamicFit);\n      score = Math.min(score, 45);\n    }\n    if (typeof titleFit === 'number' && titleFit < 50) {\n      score = Math.min(score, 45);\n    }\n    \n    item.json = {\n      ...original,\n      score: score,\n      breakdown: parsed.breakdown || { title_fit_score: titleFit ?? score, skills_fit_score: score, seniority_fit_score: score, domain_fit_score: score },\n      should_apply: score >= 70 && (titleFit === undefined || titleFit >= 50),\n      company_tier: parsed.company_tier || 'Unknown',\n      work_type: parsed.work_type || 'Unknown',\n      safety_tier: parsed.safety_tier || (score >= 85 ? 'Strongest Application' : score >= 80 ? 'Safe Opportunity' : 'Stretch Opportunity'),\n      priority_level: parsed.priority_level || (score >= 85 ? 'High' : score >= 70 ? 'Medium' : 'Low'),\n      key_matched_skills: parsed.key_matched_skills || [],\n      missing_skills: parsed.missing_skills || [],\n      experience_match_summary: parsed.experience_match_summary || '',\n      why_this_fits: parsed.why_this_fits || '',\n      disqualification_reasons: parsed.disqualification_reasons || (titleFit < 50 ? [`Title mismatch: \"${title}\" does not align with target roles (${targetTitles.join(', ')}).`] : []),\n      compensation_insight: parsed.compensation_insight || 'N/A',\n      notes_concerns: parsed.notes_concerns || '',\n      reasoning: parsed.reasoning || '',\n      parse_error: false\n    };\n  } catch (err) {\n    item.json = {\n      ...original,\n      score: 0,\n      breakdown: { title_fit_score: 0, skills_fit_score: 0, seniority_fit_score: 0, domain_fit_score: 0 },\n      should_apply: false,\n      parse_error: true,\n      parse_error_msg: err.message\n    };\n  }\n}\nlet items = $input.all();\nitems.sort((a, b) => b.json.score - a.json.score);\nreturn items;"
+      },
+      "name": "Parse Score",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.score }}",
+              "operation": "gte",
+              "value2": 70
+            }
+          ]
+        }
+      },
+      "name": "Score Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        2200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nlet logged = [];\ntry { logged = JSON.parse(fs.readFileSync('/data/logged_jobs.json', 'utf8')); } catch(e) {}\nconst rejected = $input.all().map(i => i.json);\nif (rejected.length > 0) {\n  logged = logged.concat(rejected);\n  fs.writeFileSync('/data/logged_jobs.json', JSON.stringify(logged, null, 2));\n}\nreturn $input.all();"
+      },
+      "name": "Log Rejected Jobs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        150
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nlet pending = [];\ntry { pending = JSON.parse(fs.readFileSync('/data/pending_approval.json', 'utf8')); } catch(e) {}\nconst qualified = $input.all().map(i => i.json);\nif (qualified.length > 0) {\n  pending = pending.concat(qualified);\n  fs.writeFileSync('/data/pending_approval.json', JSON.stringify(pending, null, 2));\n  \n  // Update CSV Dashboard\n  let csvContent = '';\n  if (!fs.existsSync('/data/dashboard.csv')) {\n    csvContent = 'Timestamp,Job ID,Source,Title,Company,Score,Status,Missing Skills\\n';\n  }\n  qualified.forEach(j => {\n    const timestamp = new Date().toISOString();\n    const source = j.source || 'unknown';\n    const company = (j.company || 'Unknown').replace(/,/g, '');\n    const title = (j.title || '').replace(/,/g, '');\n    const status = j.score >= 70 ? 'Qualified' : 'Rejected';\n    const missing = (j.missing_skills || []).join('; ').replace(/,/g, '');\n    csvContent += `${timestamp},${j.id},${source},\"${title}\",\"${company}\",${j.score},${status},\"${missing}\"\\n`;\n  });\n  fs.appendFileSync('/data/dashboard.csv', csvContent);\n}\nreturn $input.all();"
+      },
+      "name": "Log Pending Jobs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"chat_id\": \"{{ $env.TELEGRAM_CHAT_ID }}\",\n  \"text\": \"🎯 *New High-Match Job Found!* \\n*Source:* [{{ ($json.source || 'JOB').toUpperCase() }}]\\n*Role:* {{ $json.title }}\\n*Company:* {{ $json.company }}\\n*Location:* {{ $json.location }}\\n*Match Score:* {{ $json.score }}/100 ({{ $json.priority_level }} Priority)\\n\\n🔥 *Missing Skills:* {{ ($json.missing_skills || []).join(', ') || 'None' }}\\n\\n🔗 [Apply Directly]({{ $json.apply_url || $json.job_url }})\",\n  \"parse_mode\": \"Markdown\"\n}",
+        "options": {}
+      },
+      "name": "Telegram Notify",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2600,
+        -100
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read Master Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read Master Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Master Profile": {
+      "main": [
+        [
+          {
+            "node": "Format Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Profile": {
+      "main": [
+        [
+          {
+            "node": "Adzuna Fetch",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Apify LinkedIn Fetch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Adzuna Fetch": {
+      "main": [
+        [
+          {
+            "node": "Split Out Adzuna",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out Adzuna": {
+      "main": [
+        [
+          {
+            "node": "Normalize Dual Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apify LinkedIn Fetch": {
+      "main": [
+        [
+          {
+            "node": "Normalize Dual Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Dual Jobs": {
+      "main": [
+        [
+          {
+            "node": "Freshness Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Freshness Filter": {
+      "main": [
+        [
+          {
+            "node": "Read Seen Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Seen Jobs": {
+      "main": [
+        [
+          {
+            "node": "Dedup Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dedup Filter": {
+      "main": [
+        [
+          {
+            "node": "LLM Match Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Match Score": {
+      "main": [
+        [
+          {
+            "node": "Parse Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Score": {
+      "main": [
+        [
+          {
+            "node": "Score Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score Gate": {
+      "main": [
+        [
+          {
+            "node": "Log Pending Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Rejected Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Pending Jobs": {
+      "main": [
+        [
+          {
+            "node": "Telegram Notify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "id": "master-workflow-apify-adzuna"
+}

@@ -1,104 +1,51 @@
-# Job Application AI Agent
+# n8n Job Search Automation (BYOK, Local)
 
-An intelligent AI-powered tool that automates the job application process by:
-1. Scraping job listings from platforms like LinkedIn
-2. Analyzing job descriptions to extract key requirements
-3. Automatically tailoring your CV to match job requirements
-4. Generating customized cover letters
+An automated job search engine that fetches jobs, filters duplicates, scores them against your profile using Gemini, drafts a tailored resume/PDF and cold email, and sends it only when you click "Approve" via Telegram.
 
-## Features
+## 📦 Quick Start Guide
 
-- **Job Scraping**: Automatically search and collect job listings from LinkedIn
-- **Intelligent Analysis**: Extract key skills and requirements from job descriptions
-- **CV Customization**: Tailor your CV to highlight relevant skills for each job
-- **Batch Processing**: Generate multiple tailored CVs for different jobs at once
-- **User-Friendly Interface**: Simple web interface to control the entire process
+### 1. Prerequisites
+- Docker & Docker Compose
+- Node.js (for local script testing if desired)
 
-## Setup
+### 2. Required Accounts & API Keys (All Free)
+- **Adzuna**: developer.adzuna.com/signup (`app_id` and `app_key`)
+- **Google Gemini**: aistudio.google.com -> Get API Key
+- **Hunter.io**: hunter.io/api-keys
+- **Telegram Bot**: Message `@BotFather` on Telegram and type `/newbot` to get your Bot Token.
+- **Gmail**: Turn on 2-step verification and generate a 16-character App Password.
 
-### Prerequisites
-
-- Python 3.8+
-- Chrome browser (for web scraping)
-
-### Installation
-
-1. Clone this repository:
-```bash
-git clone https://github.com/yourusername/Job-apply-AI-agent.git
-cd Job-apply-AI-agent
-```
-
-2. Run the installation script:
-```bash
-# On Unix-based systems (macOS, Linux)
-./install.sh
-
-# On Windows
-install.bat
-```
-
-This will:
-- Create a virtual environment
-- Install all dependencies
-- Download the required spaCy language model
-- Install the package in development mode
-
-## Usage
-
-### Web Interface
-
-1. Start the web interface:
-```bash
-# Activate the virtual environment first
-source venv/bin/activate  # On Unix-based systems
-venv\Scripts\activate.bat  # On Windows
-
-# Start the web app
-job-apply-ai web
-```
-
-2. Open your browser and go to: http://localhost:5000
-
-3. Upload your base CV template
-
-4. Search for jobs by entering a job title and location
-
-5. Generate tailored CVs for all jobs or for specific jobs
-
-### Command Line
-
-The application also provides a command-line interface:
+### 3. Setup Configuration
+Duplicate the example files to create your active configuration:
 
 ```bash
-# Scrape job listings
-job-apply-ai scrape --keyword "Software Engineer" --location "Berlin" --max-jobs 5
-
-# Generate tailored CVs for all jobs in an Excel file
-job-apply-ai batch --cv path/to/cv_template.docx --jobs-file path/to/jobs.xlsx
-
-# Generate a tailored CV for a single job description
-job-apply-ai tailor --cv path/to/cv_template.docx --job path/to/job_description.txt
+cp .env.example .env
+cp data/master-profile.example.json data/master-profile.json
 ```
 
-## Project Structure
+1. **Edit `.env`**: Fill in your Adzuna App ID and Key, and set your desired `ADZUNA_SEARCH_ROLE` (e.g. `software engineer`) and `ADZUNA_SEARCH_LOCATION` (e.g. `Toronto`).
+2. **Edit `data/master-profile.json`**: Enter your actual skills, experience, and a writing sample. The AI will strictly adhere to the facts in this file.
 
-- `job_apply_ai/scraper/`: Job listing scraping modules
-- `job_apply_ai/cv_modifier/`: CV customization functionality
-- `job_apply_ai/utils/`: Utility functions and helpers
-- `job_apply_ai/ui/`: User interface components
-- `job_apply_ai/outputs/`: Output directories for jobs and CVs
-  - `job_apply_ai/outputs/jobs/`: Contains Excel files with job listings
-  - `job_apply_ai/outputs/cvs/`: Contains generated CV files
+### 4. Start the Application
+Boot up the n8n container:
+```bash
+docker compose up -d
+```
+Open **[http://localhost:5678](http://localhost:5678)** in your browser.
 
-## Testing
+### 5. Configure n8n Credentials
+In the n8n UI, navigate to **Credentials -> Add Credential** and create the following:
+1. **Gemini**: `Header Auth` -> Name: `x-goog-api-key`, Value: `your_gemini_key`
+2. **Hunter**: `Header Auth` -> Name: `X-API-KEY`, Value: `your_hunter_key`
+3. **Telegram API**: Paste your BotFather token.
+4. **SMTP**: Host: `smtp.gmail.com`, Port: `465` (SSL), User: `your_email@gmail.com`, Password: `your_16_char_app_password`.
 
-For detailed testing instructions, see [TESTING_GUIDE.md](TESTING_GUIDE.md).
+*(Note: Adzuna does not require a credential here, it securely pulls from your `.env` file!)*
 
-## License
+### 6. Import Workflows
+In the n8n UI, go to **Workflows -> Add Workflow**, click the `...` menu, select **Import from File**, and load the workflows in order:
+1. `workflows/1-fetch-dedup-score.json`
+2. `workflows/2-generate-humanize-qa.json`
+3. `workflows/3-leadgen-email-approval.json`
 
-MIT
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+Link your credentials to the corresponding nodes, click **Test Workflow** to ensure it runs smoothly, and toggle them to **Active**!
