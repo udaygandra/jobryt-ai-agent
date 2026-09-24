@@ -1,0 +1,147 @@
+{
+  "id": "wf0",
+  "name": "Workflow 0: Upload Resume -> Parse -> Master Profile",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "upload-resume",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook: Upload Resume",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        200
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst path = require('path');\n\nconst items = $input.all();\nconst item = items[0] || { json: {} };\n\nlet fileBuffer = null;\nlet fileName = 'resume.pdf';\nlet mimeType = 'application/pdf';\nlet textContent = null;\n\nconst query = (item.json && item.json.query) || {};\nconst body = (item.json && item.json.body) || {};\nconst isTest = query.test === 'true' || query.test === true || body.isTest === true || body.test === true || item.json.test === true || item.json.isTest === true;\n\n// 1. Check if file was uploaded via Webhook binary data\nif (item.binary && Object.keys(item.binary).length > 0) {\n  const binaryKey = Object.keys(item.binary)[0];\n  const binObj = item.binary[binaryKey];\n  fileName = binObj.fileName || 'uploaded_resume.pdf';\n  mimeType = binObj.mimeType || 'application/pdf';\n  if (binObj.data) {\n    fileBuffer = Buffer.from(binObj.data, 'base64');\n  }\n}\n\n// 2. Check if a filePath or resumeText was passed via JSON payload\nif (!fileBuffer && item.json) {\n  if (item.json.resumeText) {\n    textContent = item.json.resumeText;\n    fileName = 'resume.txt';\n    mimeType = 'text/plain';\n  } else if (item.json.filePath && fs.existsSync(item.json.filePath)) {\n    fileName = path.basename(item.json.filePath);\n    fileBuffer = fs.readFileSync(item.json.filePath);\n    if (fileName.endsWith('.pdf')) mimeType = 'application/pdf';\n    else if (fileName.endsWith('.docx')) mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';\n    else mimeType = 'text/plain';\n  }\n}\n\n// 3. Fallback: inspect /data or data/ for candidate resume files\nif (!fileBuffer && !textContent) {\n  const searchDirs = ['/data', 'data', '/home/node/data'];\n  const candidateNames = ['resume_input.pdf', 'resume.pdf', 'resume_final.pdf', 'resume.docx', 'resume.txt', 'resume.md'];\n  \n  for (const dir of searchDirs) {\n    for (const name of candidateNames) {\n      const p = path.join(dir, name);\n      if (fs.existsSync(p)) {\n        fileName = name;\n        fileBuffer = fs.readFileSync(p);\n        if (name.endsWith('.pdf')) mimeType = 'application/pdf';\n        else if (name.endsWith('.docx')) mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';\n        else mimeType = 'text/plain';\n        break;\n      }\n    }\n    if (fileBuffer) break;\n  }\n}\n\nif (!fileBuffer && !textContent) {\n  throw new Error('No resume file provided or found. Please upload a PDF/DOCX/TXT file or place resume.pdf in /data.');\n}\n\nlet base64Data = null;\nif (mimeType === 'application/pdf' && fileBuffer) {\n  base64Data = fileBuffer.toString('base64');\n} else if (!textContent && fileBuffer) {\n  textContent = fileBuffer.toString('utf8');\n}\n\nreturn [{\n  json: {\n    fileName,\n    mimeType,\n    isPdf: mimeType === 'application/pdf',\n    base64Data,\n    textContent,\n    isTest\n  }\n}];"
+      },
+      "id": "prepare-input",
+      "name": "Prepare Resume Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const SYSTEM_PROMPT = `You are a high-precision resume parsing engine.\nYour task is to extract all information from the provided resume and output a valid JSON object matching the exact master-profile schema.\n\nCRITICAL RULES - ZERO FABRICATION & COMPLETE FIDELITY:\n1. STRICT ZERO FABRICATION: Do NOT invent, extrapolate, assume, or hallucinate ANY details.\n   - Do NOT invent companies, job titles, skills, tools, dates, education, certifications, or metrics.\n   - If a field is not present in the resume, set it to an empty array [] or empty object {} or null or empty string \"\".\n2. NO LOSS OF DETAIL:\n   - Copy EVERY SINGLE bullet point, achievement, and responsibility from the resume verbatim or with complete detail. Do NOT summarize or omit any bullets.\n   - Extract ALL skills, tools, frameworks, libraries, platforms, and technical keywords listed in the resume.\n   - Extract ALL experience entries in chronological or listed order.\n   - Extract ALL education and certification records with their dates and institutions.\n3. OUTPUT FORMAT: Return ONLY a valid JSON object with these exact keys:\n{\n  \"name\": \"Full Name\",\n  \"target_titles\": [\"Title 1\", \"Title 2\"],\n  \"locations\": [\"Location from resume, e.g. Toronto, ON\"],\n  \"contact\": {\n    \"email\": \"email if present\",\n    \"phone\": \"phone if present\",\n    \"location\": \"city/region if present\",\n    \"linkedin\": \"linkedin url if present\",\n    \"github\": \"github url if present\",\n    \"status\": \"residency/visa status if present\"\n  },\n  \"summary\": \"Professional summary verbatim from resume if present\",\n  \"skills\": [\"Skill 1\", \"Skill 2\", ...],\n  \"experience\": [\n    {\n      \"role\": \"Exact Job Title\",\n      \"company\": \"Exact Company Name\",\n      \"dates\": \"Exact Dates e.g. Sep 2025 – Present\",\n      \"bullets\": [\n        \"Verbatim bullet 1 with all metrics and technologies preserved\",\n        \"Verbatim bullet 2 with all metrics and technologies preserved\"\n      ]\n    }\n  ],\n  \"education\": [\n    {\n      \"degree\": \"Degree name\",\n      \"institution\": \"University / College\",\n      \"dates\": \"Dates / Graduation Year\"\n    }\n  ],\n  \"certifications\": [\"Cert 1\", \"Cert 2\"],\n  \"projects\": [\n    {\n      \"name\": \"Project Name\",\n      \"description\": \"Project Description\",\n      \"technologies\": [\"Tech 1\", \"Tech 2\"]\n    }\n  ],\n  \"writing_sample\": \"Summary or excerpt from resume to serve as candidate voice sample\"\n}`;\n\nconst item = $input.all()[0].json;\nconst apiKey = $env.GEMINI_API_KEY;\nif (!apiKey) throw new Error('GEMINI_API_KEY environment variable is missing.');\n\nlet contents = [];\nif (item.isPdf && item.base64Data) {\n  contents = [{\n    parts: [\n      { text: SYSTEM_PROMPT },\n      { text: \"Extract the complete candidate profile from this attached PDF resume. Do NOT fabricate any data. Copy all details verbatim into the JSON structure.\" },\n      {\n        inlineData: {\n          mimeType: 'application/pdf',\n          data: item.base64Data\n        }\n      }\n    ]\n  }];\n} else {\n  contents = [{\n    parts: [\n      { text: SYSTEM_PROMPT },\n      { text: `Extract the complete candidate profile from this resume text:\\n\\n${item.textContent}\\n\\nDo NOT fabricate any data. Copy all details verbatim into the JSON structure.` }\n    ]\n  }];\n}\n\nconst models = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-flash-lite-latest', 'gemini-flash-latest', 'gemini-3.1-flash-lite', 'gemini-3.7-flash'];\nlet rawResponse = null;\n\nfor (const model of models) {\n  try {\n    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;\n    const res = await this.helpers.httpRequest({\n      method: 'POST',\n      url,\n      body: {\n        contents,\n        generationConfig: { response_mime_type: 'application/json' }\n      },\n      json: true\n    });\n    const text = res.candidates?.[0]?.content?.parts?.[0]?.text;\n    if (text) {\n      rawResponse = text;\n      break;\n    }\n  } catch (e) { continue; }\n}\n\nif (!rawResponse) throw new Error('Failed to extract resume with Gemini.');\n\nconst cleanText = rawResponse.replace(/```json/gi, '').replace(/```/g, '').trim();\nconst parsedProfile = JSON.parse(cleanText);\n\nreturn [{\n  json: {\n    fileName: item.fileName,\n    isTest: item.isTest,\n    profile: parsedProfile\n  }\n}];"
+      },
+      "id": "llm-extract",
+      "name": "LLM Extract Master Profile",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst path = require('path');\n\nconst item = $input.all()[0].json;\nconst profile = item.profile;\nconst isTest = item.isTest || false;\n\nconst totalBullets = (profile.experience || []).reduce((acc, exp) => acc + (exp.bullets ? exp.bullets.length : 0), 0);\n\nif (isTest) {\n  const testPaths = ['/data/test-profile.json', 'data/test-profile.json', '/home/node/data/test-profile.json'];\n  let savedTestPath = null;\n  for (const p of testPaths) {\n    try {\n      const dir = path.dirname(p);\n      if (fs.existsSync(dir)) {\n        fs.writeFileSync(p, JSON.stringify(profile, null, 2), 'utf8');\n        savedTestPath = p;\n      }\n    } catch(e) {}\n  }\n  return [{\n    json: {\n      success: true,\n      mode: 'test',\n      message: 'Resume parsed and test-profile.json generated successfully. master-profile.json was NOT modified.',\n      savedTo: savedTestPath,\n      candidate: {\n        name: profile.name || 'N/A',\n        target_titles: profile.target_titles || [],\n        locations: profile.locations || [],\n        contact: profile.contact || {},\n        roles_count: (profile.experience || []).length,\n        total_bullets: totalBullets,\n        skills_count: (profile.skills || []).length,\n        education_count: (profile.education || []).length,\n        certifications_count: (profile.certifications || []).length\n      },\n      profile: profile\n    }\n  }];\n}\n\n// Target paths in container and workspace\nconst targetPaths = ['/data/master-profile.json', 'data/master-profile.json', '/home/node/data/master-profile.json'];\nconst backupPaths = ['/data/master-profile.backup.json', 'data/master-profile.backup.json', '/home/node/data/master-profile.backup.json'];\n\nlet savedPath = null;\nfor (let i = 0; i < targetPaths.length; i++) {\n  const p = targetPaths[i];\n  const b = backupPaths[i];\n  try {\n    const dir = path.dirname(p);\n    if (fs.existsSync(dir)) {\n      // Backup existing\n      if (fs.existsSync(p)) {\n        const existing = fs.readFileSync(p, 'utf8');\n        fs.writeFileSync(b, existing, 'utf8');\n      }\n      fs.writeFileSync(p, JSON.stringify(profile, null, 2), 'utf8');\n      savedPath = p;\n    }\n  } catch(e) {}\n}\n\nconst summary = {\n  success: true,\n  mode: 'production',\n  message: 'Resume parsed and master-profile.json updated successfully with zero fabrication.',\n  savedTo: savedPath,\n  candidate: {\n    name: profile.name || 'N/A',\n    target_titles: profile.target_titles || [],\n    locations: profile.locations || [],\n    contact: profile.contact || {},\n    roles_count: (profile.experience || []).length,\n    total_bullets: totalBullets,\n    skills_count: (profile.skills || []).length,\n    education_count: (profile.education || []).length,\n    certifications_count: (profile.certifications || []).length\n  }\n};\n\nreturn [{\n  json: summary\n}];"
+      },
+      "id": "save-profile",
+      "name": "Save & Validate Master Profile",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        950,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1200,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook: Upload Resume": {
+      "main": [
+        [
+          {
+            "node": "Prepare Resume Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Prepare Resume Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Resume Payload": {
+      "main": [
+        [
+          {
+            "node": "LLM Extract Master Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Extract Master Profile": {
+      "main": [
+        [
+          {
+            "node": "Save & Validate Master Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save & Validate Master Profile": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

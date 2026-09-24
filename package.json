@@ -7,7 +7,11 @@
     "doc": "docs"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "reset": "node scripts/reset-data.js",
+    "parse-resume": "node scripts/resume-to-profile.js",
+    "test-resume": "node scripts/resume-to-profile.js --test",
+    "promote-profile": "node scripts/resume-to-profile.js --promote",
+    "test": "node scripts/test-multi-industry.js && node scripts/test-user-jobs.js"
   },
   "repository": {
     "type": "git",
@@ -22,6 +26,7 @@
   "homepage": "https://github.com/udaygandra/jobryt-ai-agent#readme",
   "dependencies": {
     "luxon": "^3.7.2",
+    "pdf-parse": "^2.4.5",
     "puppeteer": "^25.10.0"
   }
 }

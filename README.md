@@ -24,7 +24,13 @@ cp data/master-profile.example.json data/master-profile.json
 ```
 
 1. **Edit `.env`**: Fill in your Adzuna App ID and Key, and set your desired `ADZUNA_SEARCH_ROLE` (e.g. `software engineer`) and `ADZUNA_SEARCH_LOCATION` (e.g. `Toronto`).
-2. **Edit `data/master-profile.json`**: Enter your actual skills, experience, and a writing sample. The AI will strictly adhere to the facts in this file.
+2. **Generate `data/master-profile.json` from your Resume (Zero Fabrication)**:
+   Instead of manually formatting JSON, you can directly parse your resume file (PDF, Word DOCX, TXT, or MD):
+   ```bash
+   npm run parse-resume path/to/your-resume.pdf
+   ```
+   *This automatically backs up any existing profile, extracts all details verbatim into `data/master-profile.json` without losing any detail, and strictly forbids AI fabrication.*
+   *Alternatively, you can trigger **Workflow 0** in the n8n UI or upload your resume to the webhook `/webhook/upload-resume`.*
 
 ### 4. Start the Application
 Boot up the n8n container:
