@@ -20,7 +20,7 @@
     "validate": "node scripts/admin/validate-workflows.js",
     "test": "node tests/test-experience-calculator.js && node tests/test-telegram-onboarding.js && node tests/test-llm-state.js",
     "test:benchmark": "node tests/benchmark-25-roles.js",
-    "test:all": "node tests/test-experience-calculator.js && node tests/test-all-nodes.js && node tests/test-telegram-onboarding.js && node tests/test-llm-state.js && node tests/benchmark-25-roles.js"
+    "test:all": "node tests/test-experience-calculator.js && node tests/test-all-nodes.js && node tests/test-telegram-onboarding.js && node tests/test-llm-state.js && node tests/test-recruiter-node.js && node tests/test-us-jobs-matrix.js && node tests/benchmark-25-roles.js"
   },
   "repository": {
     "type": "git",
