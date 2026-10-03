@@ -79,13 +79,32 @@ npm run parse-resume "C:\path\to\Your_Resume.pdf"
 
 ---
 
-### Step 3: Launch the Bot
+### Step 3: Launch the Bot & n8n Engine
 
 ```bash
 npm start
 ```
 
-This starts the n8n automation engine and the 24/7 Telegram Bridge inside Docker containers.  
+#### 🐳 How n8n is Setup & Run (Zero-Configuration)
+* **The Easiest & Recommended Way:** Simply run **`npm start`**. It handles everything in one command:
+  1. Launches both the **n8n workflow engine** and the **24/7 Telegram bridge** in background Docker containers (`docker compose up -d`).
+  2. Automatically auto-provisions and synchronizes `workflows/master-workflow.json`, webhooks, and project permissions into n8n's SQLite database (`sync-n8n-db.js`).
+  3. Installs needed container dependencies (`xlsx`, `pdfkit`) and streams real-time bridge logs to your terminal.
+  4. **Zero manual imports or database setup required!**
+* **Optional — Running n8n Prior to the App / Standalone:**
+  If you ever want to launch n8n by itself before starting the bot (e.g. to inspect the visual workflow canvas in your browser):
+  ```bash
+  docker compose up -d n8n
+  ```
+  Open **`http://localhost:5678`** in your browser to view the visual workflow editor. When you are ready to start the Telegram bot, simply run `npm start`.
+
+> [!TIP]
+> **Do I need to sign up or activate an n8n license?**  
+> **No!** You never even need to open `http://localhost:5678` for the bot to work—everything runs 100% headless directly inside Telegram.  
+> If you choose to open `http://localhost:5678` in your browser to inspect the visual workflow canvas:
+> 1. **Owner Setup Screen:** Enter any local email (e.g. `admin@local.dev`) and password. This is just a local password for your browser.
+> 2. **License Screen:** Simply click **"Skip"** or **"Continue with Community Edition"**. It is 100% free with all features included. No license key or payment is ever required.
+
 Open Telegram, message your bot `/start`, and you are ready for action!
 
 ---

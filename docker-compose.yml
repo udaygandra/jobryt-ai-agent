@@ -31,6 +31,8 @@ services:
       - NODE_FUNCTION_ALLOW_BUILTIN=*
       - NODE_FUNCTION_ALLOW_EXTERNAL=*
       - CODE_ENABLE_STDOUT=true
+      - N8N_PERSONALIZATION_ENABLED=false
+      - N8N_DIAGNOSTICS_ENABLED=false
       - NODE_PATH=/usr/local/lib/node_modules:/home/node/.n8n/node_modules
     env_file:
       - ${ENV_FILE:-.env}

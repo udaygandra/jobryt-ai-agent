@@ -30,12 +30,17 @@ const n8nDbPath = process.env.N8N_DB_PATH || '/home/node/.n8n/database.sqlite';
 
 // This script only runs inside Docker where the database exists
 if (!fs.existsSync(n8nDbPath)) {
-  console.log(`ℹ️ n8n database not found at ${n8nDbPath} (running on host). Sync happens inside Docker.`);
-  process.exit(0);
+  console.error(`❌ n8n database not found at ${n8nDbPath}. Waiting for n8n initialization...`);
+  process.exit(1);
 }
 
 // ── Open Database and Load Workflow ─────────────────────────────────────────
 const db = new DatabaseSync(n8nDbPath);
+try {
+  db.exec('PRAGMA busy_timeout = 10000;');
+  db.exec('PRAGMA journal_mode = WAL;');
+} catch (_) {}
+
 const now = new Date().toISOString().replace('T', ' ').substring(0, 23);
 const master = JSON.parse(fs.readFileSync(path.join(workflowsDir, 'master-workflow.json'), 'utf8'));
 
@@ -53,7 +58,59 @@ if (webhookNode) {
   webhookNode.id = newVersionId;
 }
 
-// ── Step 2: Insert workflow history record ──────────────────────────────────
+function getProjectId() {
+  try {
+    const proj = db.prepare('SELECT id FROM project LIMIT 1').get();
+    if (proj && proj.id) return proj.id;
+  } catch (_) {}
+  try {
+    const shared = db.prepare('SELECT projectId FROM shared_workflow LIMIT 1').get();
+    if (shared && shared.projectId) return shared.projectId;
+  } catch (_) {}
+  try {
+    const defaultProjId = 'default-personal-project';
+    db.prepare(`
+      INSERT OR IGNORE INTO project (id, name, type, createdAt, updatedAt)
+      VALUES (?, 'Personal', 'personal', ?, ?)
+    `).run(defaultProjId, now, now);
+    return defaultProjId;
+  } catch (_) {}
+  return null;
+}
+
+// ── Step 2: Ensure workflow_entity exists (Upsert) ──────────────────────────
+try {
+  const existingMaster = db.prepare('SELECT id FROM workflow_entity WHERE id = ?').get(workflowId);
+  if (!existingMaster) {
+    db.prepare(`
+      INSERT INTO workflow_entity (id, name, active, nodes, connections, settings, versionId, createdAt, updatedAt)
+      VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?)
+    `).run(
+      workflowId,
+      master.name || 'Master Workflow: Fetch, Score & Generate',
+      JSON.stringify(master.nodes),
+      JSON.stringify(master.connections),
+      JSON.stringify(master.settings || {}),
+      newVersionId,
+      now,
+      now
+    );
+    console.log(`✅ ${workflowId} entity inserted`);
+  }
+
+  const projId = getProjectId();
+  if (projId) {
+    db.prepare(`
+      INSERT OR REPLACE INTO shared_workflow (workflowId, projectId, role, createdAt, updatedAt)
+      VALUES (?, ?, 'workflow:owner', ?, ?)
+    `).run(workflowId, projId, now, now);
+    console.log(`✅ shared_workflow synced (${workflowId} -> ${projId})`);
+  }
+} catch (err) {
+  console.error('Error inserting workflow_entity:', err.message);
+}
+
+// ── Step 3: Insert workflow history record ──────────────────────────────────
 try {
   db.prepare(`
     INSERT INTO workflow_history (versionId, workflowId, authors, createdAt, updatedAt, nodes, connections, name, autosaved)
@@ -64,7 +121,17 @@ try {
   console.error('Error inserting workflow_history:', err.message);
 }
 
-// ── Step 3: Update published version pointer ────────────────────────────────
+// ── Step 4: Update the main workflow entity with activeVersionId ────────────
+try {
+  const updateResult = db.prepare(
+    'UPDATE workflow_entity SET nodes = ?, connections = ?, active = 1, activeVersionId = ?, versionId = ?, updatedAt = ?, settings = ? WHERE id = ?',
+  ).run(JSON.stringify(master.nodes), JSON.stringify(master.connections), newVersionId, newVersionId, now, JSON.stringify(master.settings || {}), workflowId);
+  console.log(`✅ ${workflowId} entity updated (changes: ${updateResult.changes})`);
+} catch (err) {
+  console.error('Error updating workflow_entity:', err.message);
+}
+
+// ── Step 5: Update published version pointer ────────────────────────────────
 try {
   db.prepare(
     'INSERT OR REPLACE INTO workflow_published_version (workflowId, publishedVersionId, createdAt, updatedAt) VALUES (?, ?, ?, ?)',
@@ -74,13 +141,7 @@ try {
   console.error('Error updating published version:', err.message);
 }
 
-// ── Step 4: Update the main workflow entity ─────────────────────────────────
-const updateResult = db.prepare(
-  'UPDATE workflow_entity SET nodes = ?, connections = ?, active = 1, activeVersionId = ?, versionId = ?, updatedAt = ?, settings = ? WHERE id = ?',
-).run(JSON.stringify(master.nodes), JSON.stringify(master.connections), newVersionId, newVersionId, now, JSON.stringify(master.settings || {}), workflowId);
-console.log(`✅ ${workflowId} entity updated (changes: ${updateResult.changes})`);
-
-// ── Step 5: Register webhook endpoint ───────────────────────────────────────
+// ── Step 5b: Register webhook endpoint ──────────────────────────────────────
 try {
   db.prepare('DELETE FROM webhook_entity WHERE workflowId = ?').run(workflowId);
   db.prepare(
@@ -117,16 +178,16 @@ try {
         now,
         now,
       );
-
-      // Link new workflow to the existing project
-      const shared = db.prepare('SELECT projectId FROM shared_workflow LIMIT 1').get();
-      if (shared && shared.projectId) {
-        db.prepare(`
-          INSERT OR IGNORE INTO shared_workflow (workflowId, projectId, role, createdAt, updatedAt)
-          VALUES (?, ?, 'workflow:owner', ?, ?)
-        `).run('wf0', shared.projectId, now, now);
-      }
       console.log('✅ wf0 inserted');
+    }
+
+    const projId = getProjectId();
+    if (projId) {
+      db.prepare(`
+        INSERT OR REPLACE INTO shared_workflow (workflowId, projectId, role, createdAt, updatedAt)
+        VALUES (?, ?, 'workflow:owner', ?, ?)
+      `).run('wf0', projId, now, now);
+      console.log(`✅ shared_workflow synced (wf0 -> ${projId})`);
     }
   }
 } catch (err) {
@@ -149,3 +210,8 @@ try {
 // ── Summary ─────────────────────────────────────────────────────────────────
 const rows = db.prepare('SELECT id, name, updatedAt FROM workflow_entity').all();
 console.log('📋 Final workflow entities in SQLite:', rows);
+
+if (!rows.some(r => r.id === 'master-bot')) {
+  console.error('❌ master-bot was not saved in SQLite. Exiting with retry code.');
+  process.exit(1);
+}

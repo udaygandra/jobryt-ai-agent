@@ -22,7 +22,7 @@ const path = require('path');
 const { loadEnv } = require('../core/load-env');
 
 // ── Step 1: Load environment configuration ──────────────────────────────────
-const rootDir = path.join(__dirname, '..');
+const rootDir = path.resolve(__dirname, '..', '..');
 loadEnv();
 
 const botToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -121,11 +121,11 @@ try {
 // ── Step 3.5: Turnkey Auto-Provisioning & Database Sync ────────────────────
 console.log('🔄 Checking n8n container dependencies & workflow database sync...');
 try {
-  // Wait a few seconds for n8n container to respond
+  // Wait for n8n container to create and initialize database.sqlite
   let isReady = false;
-  for (let i = 0; i < 15; i++) {
+  for (let i = 0; i < 30; i++) {
     try {
-      execSync(`${composeCmd} exec -T n8n node -e "require('node:sqlite');"`, { cwd: rootDir, stdio: 'ignore' });
+      execSync(`${composeCmd} exec -T n8n node -e "const fs = require('fs'); if (!fs.existsSync('/home/node/.n8n/database.sqlite')) process.exit(1);"`, { cwd: rootDir, stdio: 'ignore' });
       isReady = true;
       break;
     } catch (_) {
@@ -146,7 +146,41 @@ try {
 
     // 2. Automatically sync master workflow and webhooks into n8n SQLite database
     try {
-      execSync(`${composeCmd} exec -T n8n node /scripts/admin/sync-n8n-db.js`, { cwd: rootDir, stdio: 'inherit' });
+      let synced = false;
+      for (let attempt = 0; attempt < 15; attempt++) {
+        try {
+          execSync(`${composeCmd} exec -T n8n node /scripts/admin/sync-n8n-db.js`, { cwd: rootDir, stdio: 'inherit' });
+          synced = true;
+          break;
+        } catch (_) {
+          Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1000);
+        }
+      }
+      if (synced) {
+        // Restart n8n container once so in-memory webhook listeners reload from SQLite
+        execSync(`${composeCmd} restart n8n`, { cwd: rootDir, stdio: 'ignore' });
+        console.log('🔄 Waiting for n8n webhook listener to become active...');
+      }
+      
+      // Verification loop: Ensure webhook route responds before declaring ready
+      let webhookLive = false;
+      for (let attempt = 0; attempt < 20; attempt++) {
+        try {
+          const testRes = execSync(
+            `${composeCmd} exec -T telegram-bridge node -e "fetch('http://n8n:5678/webhook/telegram-callback', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'PING'})}).then(r => process.exit(r.status === 200 ? 0 : 1)).catch(() => process.exit(1));"`,
+            { cwd: rootDir, stdio: 'ignore' }
+          );
+          webhookLive = true;
+          break;
+        } catch (_) {
+          Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1000);
+        }
+      }
+      if (webhookLive) {
+        console.log('✅ n8n workflow & webhooks verified active & ready.');
+      } else {
+        console.warn('⚠️ Webhook listener took longer than expected to bind, will retry automatically on first action.');
+      }
     } catch (e) {
       console.warn('⚠️ n8n database sync check:', e.message);
     }

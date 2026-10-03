@@ -65,7 +65,7 @@ async function runWizard() {
   console.log('   4. Choose a name and a username for your bot.');
   console.log('   5. BotFather will reply with an API token (e.g. 123456789:ABCdefGh...).');
   console.log('──────────────────────────────────────────────────────────────────────');
-  const botToken = await ask('Paste your Telegram Bot Token', existingEnv.TELEGRAM_BOT_TOKEN || '');
+  const botToken = await ask('Paste your Telegram Bot Token');
 
   // 3. Telegram Chat ID
   console.log('\n──────────────────────────────────────────────────────────────────────');
@@ -75,7 +75,7 @@ async function runWizard() {
   console.log('   3. It will immediately reply with your numeric "Id" (e.g. 123456789).');
   console.log('   (This locks the bot strictly to YOU so no stranger can access it)');
   console.log('──────────────────────────────────────────────────────────────────────');
-  const chatId = await ask('Paste your Telegram Chat ID', existingEnv.TELEGRAM_CHAT_ID || '');
+  const chatId = await ask('Paste your Telegram Chat ID');
 
   // 4. Google Gemini API Key
   console.log('\n──────────────────────────────────────────────────────────────────────');
@@ -84,7 +84,7 @@ async function runWizard() {
   console.log('   2. Sign in with any free Google account.');
   console.log('   3. Click "Create API Key" and copy the key (starts with AIzaSy...).');
   console.log('──────────────────────────────────────────────────────────────────────');
-  const geminiKey = await ask('Paste your Gemini API Key', existingEnv.GEMINI_API_KEY || '');
+  const geminiKey = await ask('Paste your Gemini API Key');
 
   // 5. Optional Adzuna API
   console.log('\n──────────────────────────────────────────────────────────────────────');
@@ -94,9 +94,9 @@ async function runWizard() {
   console.log('   If you have a free Adzuna developer account, enter your keys below.');
   console.log('   (Press Enter to skip if you do not have one yet).');
   console.log('──────────────────────────────────────────────────────────────────────');
-  const adzunaId = await ask('Adzuna App ID (optional)', existingEnv.ADZUNA_APP_ID || '');
-  const adzunaKey = await ask('Adzuna App Key (optional)', existingEnv.ADZUNA_APP_KEY || '');
-  const usajobsKey = await ask('USAJOBS Federal API Key (optional - US Federal jobs)', existingEnv.USAJOBS_API_KEY || '');
+  const adzunaId = await ask('Adzuna App ID (optional)');
+  const adzunaKey = await ask('Adzuna App Key (optional)');
+  const usajobsKey = await ask('USAJOBS Federal API Key (optional - US Federal jobs)');
 
   // 6. Recruiter Outreach Keys
   console.log('\n──────────────────────────────────────────────────────────────────────');
@@ -108,8 +108,8 @@ async function runWizard() {
   console.log('   • Hunter.io (hunter.io - free 25 HR email searches/month)');
   console.log('   (Press Enter to skip if you do not have them or prefer Google Search).');
   console.log('──────────────────────────────────────────────────────────────────────');
-  const serperKey = await ask('Serper API Key (optional - Google search for recruiters)', existingEnv.SERPER_API_KEY || '');
-  const hunterKey = await ask('Hunter API Key (optional - HR email discovery)', existingEnv.HUNTER_API_KEY || '');
+  const serperKey = await ask('Serper API Key (optional - Google search for recruiters)');
+  const hunterKey = await ask('Hunter API Key (optional - HR email discovery)');
 
   // Build pristine .env content
   const envContent = `# Mandatory
@@ -179,13 +179,24 @@ CLOUDFLARE_TUNNEL_TOKEN=${existingEnv.CLOUDFLARE_TUNNEL_TOKEN || ''}
   console.log('\n' + '='.repeat(70));
   console.log('🎉 CONFIGURATION SAVED SUCCESSFULLY TO .env!');
   console.log('='.repeat(70));
-  console.log('🚀 Next Steps:');
-  console.log('   1. Ingest your resume:');
-  console.log('      npm run parse-resume "path/to/Your_Resume.pdf"');
-  console.log('      (Or simply send your resume file to your bot in Telegram!)');
-  console.log('   2. Start your bot:');
+  console.log('\n┌' + '─'.repeat(68) + '┐');
+  console.log('│ 📋 HIGHLIGHT: Your configuration has been written to: .env         │');
+  console.log('│ 👉 Please copy and save your .env contents in a safe private place!│');
+  console.log('└' + '─'.repeat(68) + '┘\n');
+  console.log('🐳 HOW N8N & THE BOT WORK (Zero-Configuration):');
+  console.log('   • n8n runs automatically inside Docker alongside the Telegram bridge.');
+  console.log('   • You DO NOT need to install, configure, or import workflows manually.');
+  console.log('   • Running "npm start" launches Docker, auto-syncs the master workflow,');
+  console.log('     registers webhooks, and starts 24/7 automation in a single command.');
+  console.log('   • Optional: You can view n8n’s visual editor at http://localhost:5678');
+  console.log('     (If prompted, set any local password and click "Skip" on the license screen;');
+  console.log('      the Community edition is 100% free with all features included!).');
+  console.log('──────────────────────────────────────────────────────────────────────');
+  console.log('🚀 Next Steps to Launch:');
+  console.log('   1. Start your bot & n8n engine:');
   console.log('      npm start');
-  console.log('   3. Open Telegram and send /start to your bot!');
+  console.log('   2. Open Telegram and send /start to your bot!');
+  console.log('   3. Drop your resume file (.pdf/.docx) directly into the chat to onboard.');
   console.log('='.repeat(70) + '\n');
 
   rl.close();

@@ -97,23 +97,37 @@ async function downloadFile(fileId, destPath) {
   });
 }
 
-function forwardToN8n(update) {
-  return new Promise(resolve => {
-    const payload = JSON.stringify(update);
-    const parsed = new URL(targetWebhookUrl);
-    const client = parsed.protocol === 'https:' ? https : http;
-    const req = client.request({
-      hostname: parsed.hostname, port: parsed.port || (client === https ? 443 : 80),
-      path: parsed.pathname, method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) }
-    }, res => {
-      let body = ''; res.on('data', c => body += c); res.on('end', () => resolve(res.statusCode));
+async function forwardToN8n(update, maxRetries = 3) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const status = await new Promise(resolve => {
+      const payload = JSON.stringify(update);
+      const parsed = new URL(targetWebhookUrl);
+      const client = parsed.protocol === 'https:' ? https : http;
+      const req = client.request({
+        hostname: parsed.hostname, port: parsed.port || (client === https ? 443 : 80),
+        path: parsed.pathname, method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) }
+      }, res => {
+        let body = ''; res.on('data', c => body += c); res.on('end', () => resolve(res.statusCode));
+      });
+      req.on('error', () => resolve(null));
+      req.write(payload);
+      req.end();
     });
-    req.on('error', () => resolve(null));
-    req.write(payload);
-    req.end();
-  });
+
+    if (status === 200) {
+      return 200;
+    }
+
+    if (attempt < maxRetries) {
+      console.log(`⏳ n8n webhook returned ${status} on attempt ${attempt}/${maxRetries}. Retrying in 1.5s...`);
+      await new Promise(r => setTimeout(r, 1500));
+    } else {
+      return status;
+    }
+  }
 }
+
 
 const { getLLMState, getNextWaterfallModel } = require('../engine/llm-state-manager');
 
