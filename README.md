@@ -16,6 +16,7 @@ git clone https://github.com/udaygandra/jobryt-ai-agent.git
 cd jobryt-ai-agent
 npm install
 node setup.js   # or: npm run setup
+npm start       # Launches n8n engine, Telegram bot & automated sync
 ```
 
 ---
