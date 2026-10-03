@@ -143,6 +143,17 @@ try {
   let isReady = false;
   for (let i = 0; i < 30; i++) {
     try {
+      // Inspect docker container status for restart loops / key mismatch crashes
+      const inspectState = execSync(`${composeCmd} ps n8n --format json`, { cwd: rootDir, encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] });
+      if (inspectState.includes('"Restarting"') || inspectState.includes('Restarting (')) {
+        const logs = execSync(`${composeCmd} logs --tail 20 n8n`, { cwd: rootDir, encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] });
+        if (logs.includes('Mismatching encryption keys') || logs.includes('Failed to load command')) {
+          console.warn('⚠️ [Auto-Recovery] Detected stale n8n encryption key mismatch. Resetting container volume...');
+          execSync(`${composeCmd} down -v`, { cwd: rootDir, stdio: 'ignore' });
+          execSync(`${composeCmd} up -d`, { cwd: rootDir, stdio: 'ignore' });
+        }
+      }
+
       execSync(`${composeCmd} exec -T n8n node -e "const fs = require('fs'); if (!fs.existsSync('/home/node/.n8n/database.sqlite')) process.exit(1);"`, { cwd: rootDir, stdio: 'ignore' });
       isReady = true;
       break;
