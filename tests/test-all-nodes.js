@@ -59,12 +59,13 @@ assert(normalized.id.includes('4472588483'));
 console.log(`   ✔ Normalization verified: ${normalized.id}`);
 
 // Role Relevance Guard Assertions
-assert(isJobRoleRelevant('Data Analyst, Go-To-Market Sales Insights', profileObj.target_titles), 'Data Analyst should pass');
-assert(isJobRoleRelevant('big data analyst', profileObj.target_titles), 'Big Data Analyst should pass');
-assert(!isJobRoleRelevant('Senior Recruiter', profileObj.target_titles), 'Senior Recruiter must be rejected');
-assert(!isJobRoleRelevant('Senior Shopify Developer', profileObj.target_titles), 'Senior Shopify Developer must be rejected');
-assert(!isJobRoleRelevant('Senior Developer (Windows), Product Security', profileObj.target_titles), 'Windows Security Developer must be rejected');
-assert(!isJobRoleRelevant('Senior QA Automation Developer (Platform)', profileObj.target_titles), 'QA Automation Developer must be rejected');
+const targetSampleTitles = ['Data Analyst', 'Business Intelligence Analyst'];
+assert(isJobRoleRelevant('Data Analyst, Go-To-Market Sales Insights', targetSampleTitles), 'Data Analyst should pass');
+assert(isJobRoleRelevant('big data analyst', targetSampleTitles), 'Big Data Analyst should pass');
+assert(!isJobRoleRelevant('Senior Recruiter', targetSampleTitles), 'Senior Recruiter must be rejected');
+assert(!isJobRoleRelevant('Senior Shopify Developer', targetSampleTitles), 'Senior Shopify Developer must be rejected');
+assert(!isJobRoleRelevant('Senior Developer (Windows), Product Security', targetSampleTitles), 'Windows Security Developer must be rejected');
+assert(!isJobRoleRelevant('Senior QA Automation Developer (Platform)', targetSampleTitles), 'QA Automation Developer must be rejected');
 console.log('   ✔ Role Relevance Gate verified: Strictly admitted Data/BI roles and rejected Recruiter/Software Dev roles');
 
 // ── Node 3: Freshness Filter ────────────────────────────────────────────────

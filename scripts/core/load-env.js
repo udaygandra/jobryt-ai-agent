@@ -75,11 +75,15 @@ function parseEnvFile(filePath, override = false) {
       const key = line.substring(0, equalIndex).trim();
       let value = line.substring(equalIndex + 1).trim();
 
-      // Strip unquoted inline comments (e.g., VALUE # comment)
+      // Strip unquoted inline comments (e.g., VALUE # comment or # comment when empty)
       if (!value.startsWith('"') && !value.startsWith("'")) {
-        const commentIdx = value.indexOf(' #');
-        if (commentIdx !== -1) {
-          value = value.substring(0, commentIdx).trim();
+        if (value.startsWith('#')) {
+          value = '';
+        } else {
+          const commentIdx = value.indexOf('#');
+          if (commentIdx !== -1) {
+            value = value.substring(0, commentIdx).trim();
+          }
         }
       }
 
@@ -101,6 +105,32 @@ function parseEnvFile(filePath, override = false) {
   }
 }
 
+function sanitizeEnvFile(filePath) {
+  if (!filePath || !fs.existsSync(filePath)) return;
+  try {
+    const raw = fs.readFileSync(filePath, 'utf8');
+    const lines = raw.split(/\r?\n/);
+    let changed = false;
+    const cleanLines = lines.map(line => {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) return line;
+      const eqIdx = line.indexOf('=');
+      if (eqIdx === -1) return line;
+      const key = line.substring(0, eqIdx).trim();
+      const val = line.substring(eqIdx + 1).trim();
+      if (val.startsWith('#')) {
+        changed = true;
+        return `${val}\n${key}=`;
+      }
+      return line;
+    });
+    if (changed) {
+      fs.writeFileSync(filePath, cleanLines.join('\n'), 'utf8');
+      console.log(`[load-env] Sanitized inline comments in ${filePath}`);
+    }
+  } catch (_) {}
+}
+
 // ── Step 3: Main Loader (call this from any script) ─────────────────────────
 // Example usage: const { loadEnv } = require('./load-env'); loadEnv();
 function loadEnv(forceReload = false) {
@@ -110,6 +140,7 @@ function loadEnv(forceReload = false) {
   // Find and parse the canonical .env file
   const canonicalPath = resolveCanonicalEnvPath();
   if (canonicalPath) {
+    sanitizeEnvFile(canonicalPath);
     parseEnvFile(canonicalPath, false);
     loadedFilePath = canonicalPath;
 

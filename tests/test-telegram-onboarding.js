@@ -119,9 +119,9 @@ console.log('   ✅ Test 4 Passed.\n');
 console.log('Test 5: Full Onboarding State Machine Transitions...');
 const testChatId = '999999999';
 
-// Setup Mock Staged Profile in state
+// Setup Mock Staged Profile in state at Experience Confirmation step
 onboardingHandler.setActiveState(testChatId, {
-  action: 'AWAIT_LOCATION_CHOICE',
+  action: 'AWAIT_EXP_CONFIRMATION',
   stagedProfile: {
     name: 'Test Candidate',
     contact: { email: 'test@example.com', location: 'Toronto, ON' },
@@ -131,12 +131,26 @@ onboardingHandler.setActiveState(testChatId, {
   locationOptions: ['GTA (Greater Toronto Area)', 'Canada (All Provinces / Nationwide)', 'Worldwide / Global Remote'],
   primaryRole: 'Data Analyst',
   seniorityRole: 'Senior Data Analyst',
-  yearsOfExp: 4,
+  yearsOfExp: 6.375,
   variationsStr: 'Data Analyst; Business Intelligence Analyst'
 });
 
 (async () => {
   try {
+    // Step 0.5: User submits experience "6.375" (should round to 6.5)
+    const updateExp = {
+      message: {
+        text: '6.375',
+        from: { id: testChatId },
+        chat: { id: testChatId }
+      }
+    };
+    const handledExp = await onboardingHandler.processUpdate(updateExp);
+    assert(handledExp, 'Experience step should be handled');
+    const stateAfterExp = onboardingHandler.getActiveState(testChatId);
+    assert.strictEqual(stateAfterExp.action, 'AWAIT_LOCATION_CHOICE', 'Should advance to AWAIT_LOCATION_CHOICE');
+    assert.strictEqual(stateAfterExp.stagedProfile.years_of_experience, 6.5, '6.375 should round to 6.5');
+
     // Step 1: User selects Location Option 0 ("GTA (Greater Toronto Area)")
     const updateStep1 = {
       callback_query: {

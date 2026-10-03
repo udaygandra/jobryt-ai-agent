@@ -25,6 +25,28 @@ const { loadEnv } = require('../core/load-env');
 const rootDir = path.resolve(__dirname, '..', '..');
 loadEnv();
 
+// Auto-generate or sanitize N8N_ENCRYPTION_KEY if missing or default placeholder
+let encryptionKey = (process.env.N8N_ENCRYPTION_KEY || '').trim();
+if (!encryptionKey || encryptionKey === 'your_32_char_encryption_key' || encryptionKey.length < 16) {
+  const crypto = require('crypto');
+  encryptionKey = crypto.randomBytes(16).toString('hex');
+  process.env.N8N_ENCRYPTION_KEY = encryptionKey;
+
+  const envPath = path.join(rootDir, '.env');
+  if (fs.existsSync(envPath)) {
+    try {
+      let envContent = fs.readFileSync(envPath, 'utf8');
+      if (envContent.includes('N8N_ENCRYPTION_KEY=')) {
+        envContent = envContent.replace(/^N8N_ENCRYPTION_KEY=.*$/m, `N8N_ENCRYPTION_KEY=${encryptionKey}`);
+      } else {
+        envContent += `\nN8N_ENCRYPTION_KEY=${encryptionKey}\n`;
+      }
+      fs.writeFileSync(envPath, envContent, 'utf8');
+      console.log('✨ [Auto-Config] Generated secure 32-character N8N_ENCRYPTION_KEY in .env');
+    } catch (_) {}
+  }
+}
+
 const botToken = process.env.TELEGRAM_BOT_TOKEN;
 const chatId = process.env.TELEGRAM_CHAT_ID;
 const geminiKey = process.env.GEMINI_API_KEY;
@@ -52,20 +74,16 @@ const promptsDir = process.env.PROMPTS_DIR
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 if (!fs.existsSync(promptsDir)) fs.mkdirSync(promptsDir, { recursive: true });
 
-// Initialize empty state files that the pipeline needs
+// Initialize state files (tracking database is managed automatically by jobs-db.js)
 const DEFAULT_STATE_FILES = [
-  { name: 'seen_jobs.json', content: '[]' },
-  { name: 'pending_approval.json', content: '[]' },
-  { name: 'logged_jobs.json', content: '[]' },
-  { name: 'rejected_jobs.json', content: '[]' },
-  { name: 'qualified_jobs.json', content: '[]' },
-  { name: 'processed_jobs.json', content: '[]' },
-  { name: 'adzuna_role_idx.json', content: JSON.stringify({ idx: 0 }, null, 2) },
-  { name: 'dashboard.csv', content: 'Timestamp,Job ID,Source,Title,Company,Score,Status,Missing Skills\n' },
+  { name: 'cache/adzuna_role_idx.json', content: JSON.stringify({ idx: 0 }, null, 2) },
+  { name: 'tracking/dashboard.csv', content: 'Timestamp,Job ID,Source,Title,Company,Score,Status,Missing Skills\n' },
 ];
 
 for (const file of DEFAULT_STATE_FILES) {
   const filePath = path.join(dataDir, file.name);
+  const fileParent = path.dirname(filePath);
+  if (!fs.existsSync(fileParent)) fs.mkdirSync(fileParent, { recursive: true });
   if (!fs.existsSync(filePath)) {
     fs.writeFileSync(filePath, file.content, 'utf8');
     console.log(`✨ [Auto-Init] Created missing state file: data/${file.name}`);

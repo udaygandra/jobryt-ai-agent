@@ -20,16 +20,31 @@ const path = require('path');
 try { const { loadEnv } = require('../core/load-env'); loadEnv(); } catch (_) {}
 
 // ── Parse Command Line Arguments ────────────────────────────────────────────
-const args = process.argv.slice(2);
-const botToken = (args[0] && args[0].trim()) || process.env.TELEGRAM_BOT_TOKEN;
-const chatId = (args[1] && args[1].trim()) || process.env.TELEGRAM_CHAT_ID;
-const docPath = args[2];
-const docFileName = args[3] || (docPath ? path.basename(docPath) : 'document.pdf');
-const caption = args[4] || '';
+let botToken = process.env.TELEGRAM_BOT_TOKEN;
+let chatId = process.env.TELEGRAM_CHAT_ID;
+let docPath = null;
+let docFileName = null;
+let caption = '';
+
+const rawArgs = process.argv.slice(2).map(a => String(a || '').trim()).filter(Boolean);
+
+if (rawArgs.length >= 3 && rawArgs[0].includes(':') && !/^[a-zA-Z]:[\\/]/.test(rawArgs[0])) {
+  // Format: node send-telegram-doc.js <botToken> <chatId> <docPath> [fileName] [caption]
+  botToken = rawArgs[0];
+  chatId = rawArgs[1];
+  docPath = rawArgs[2];
+  docFileName = rawArgs[3] || (docPath ? path.basename(docPath) : 'document.pdf');
+  caption = rawArgs[4] || '';
+} else if (rawArgs.length >= 1) {
+  // Format: node send-telegram-doc.js <docPath> [fileName] [caption]
+  docPath = rawArgs[0];
+  docFileName = rawArgs[1] || (docPath ? path.basename(docPath) : 'document.pdf');
+  caption = rawArgs[2] || '';
+}
 
 // Validate required arguments
 if (!botToken || !chatId || !docPath) {
-  console.error('Usage: node send-telegram-doc.js <botToken> <chatId> <docPath> [fileName] [caption]');
+  console.error('Usage: node send-telegram-doc.js [botToken] [chatId] <docPath> [fileName] [caption]');
   process.exit(1);
 }
 if (!fs.existsSync(docPath)) {

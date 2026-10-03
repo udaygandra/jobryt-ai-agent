@@ -12,8 +12,13 @@ CRITICAL RULES — ZERO FABRICATION & COMPLETE FIDELITY:
 
 2. NO-LOSS EXTRACTION:
    - Copy every experience bullet with complete detail; do not summarize or condense bullets.
-   - Extract every individual skill, tool, framework, library, platform, database, and methodology keyword as granular strings.
+   - Extract every individual skill, tool, framework, library, platform, database, and methodology keyword as granular strings into `skills`.
    - Preserve qualifiers such as "Familiar", "Beginner", "Working knowledge", or similar. Put those items in `skills_familiar` when the resume explicitly qualifies them as non-expert/familiar.
+   - Categorize skills into `skills_categorized`:
+     * If the resume has its own skill headings (e.g. "Databases", "Cloud", "BI Tools"), use those headings and wording exactly as the category name.
+     * If it does not, use only these fallback categories: "Languages", "Databases", "Cloud & Infrastructure", "Data & BI Tools", "Frameworks & Libraries", "DevOps & Tooling", "Methodologies", "Other".
+     * Never invent a skill. Every item in `skills_categorized` must also exist in `skills`, and every item in `skills` must appear in exactly one category. Omit empty categories. Do not duplicate a skill across categories.
+   - Extract `total_experience_stated`: If the resume states a total years of experience verbatim in the summary or profile (e.g. "8+ years", "over 6 years"), extract that exact phrase into `total_experience_stated`. If not explicitly stated, use "". Do NOT infer or calculate it.
    - Preserve experience order as listed in the resume.
    - Extract all education and certifications with dates/institutions when available.
    - Extract contact information completely: name, email, phone, location, work authorization / residency status (e.g. "Permanent Resident of Canada"), linkedin, github/portfolio when present.
@@ -39,8 +44,15 @@ RETURN ONLY VALID JSON MATCHING THIS EXACT SCHEMA:
     "status": ""
   },
   "summary": "",
+  "total_experience_stated": "",
   "skills": [],
   "skills_familiar": [],
+  "skills_categorized": [
+    {
+      "category": "",
+      "items": []
+    }
+  ],
   "experience": [
     {
       "role": "",

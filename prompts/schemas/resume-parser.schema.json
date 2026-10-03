@@ -18,8 +18,21 @@
       "additionalProperties": false
     },
     "summary": {"type": "string"},
+    "total_experience_stated": {"type": "string"},
     "skills": {"type": "array", "items": {"type": "string"}},
     "skills_familiar": {"type": "array", "items": {"type": "string"}},
+    "skills_categorized": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "category": {"type": "string"},
+          "items": {"type": "array", "items": {"type": "string"}}
+        },
+        "required": ["category", "items"],
+        "additionalProperties": false
+      }
+    },
     "experience": {
       "type": "array",
       "items": {
