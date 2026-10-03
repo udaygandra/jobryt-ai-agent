@@ -131,15 +131,22 @@ async function forwardToN8n(update, maxRetries = 3) {
 
 const { getLLMState, getNextWaterfallModel } = require('../engine/llm-state-manager');
 
-function renderHelpMessage() {
+function renderHelpMessage(isStart = false) {
+  const startBanner = isStart
+    ? `🚨 <b>STEP 1: RESUME UPLOAD REQUIRED</b> 🚨\n` +
+      `<i>Before launching job searches or configuring settings, please upload your resume (.pdf or .docx). This will parse your verified work history, skills, and contact info to calibrate your profile!</i>\n\n`
+    : ``;
+
   return `🤖 <b>JOBRYT AI JOB HUNT AGENT — HELP & COMMAND GUIDE</b>\n\n` +
+    startBanner +
     `Here is a full breakdown of all available action commands and features:\n\n` +
     `🚀 <b>CORE ACTIONS</b>\n` +
     `• <code>/scan</code> or <code>/find-jobs</code> — Trigger instant multi-board job search & scoring scan\n` +
     `• <code>/profile</code> — View your master profile, skills, verified experience & settings\n` +
     `• <code>/settings</code> — Open the interactive visual settings dashboard\n` +
     `• <code>/import-resume</code> — Upload a new resume (PDF/DOCX/TXT) to parse & calibrate profile\n` +
-    `• <code>/recruiters &lt;company&gt;</code> — Find hiring team contacts & 1-tap Google search\n• <code>/status</code> — Check system health, LLM quota status, and seen job metrics\n\n` +
+    `• <code>/recruiters &lt;company&gt;</code> — Find hiring team contacts & 1-tap Google search\n` +
+    `• <code>/status</code> — Check system health, LLM quota status, and seen job metrics\n\n` +
     `⚡ <b>FAST CONFIGURATION COMMANDS</b>\n` +
     `• <code>/location &lt;cities&gt;</code> — Set target search cities (e.g. <code>/location Toronto, Remote</code>)\n` +
     `• <code>/worktype &lt;mode&gt;</code> — Set arrangement (<code>Remote Only</code>, <code>Hybrid & Remote</code>, <code>Open to All</code>)\n` +
@@ -155,6 +162,9 @@ function renderHelpMessage() {
 function getHelpKeyboard() {
   return {
     inline_keyboard: [
+      [
+        { text: '📄 Upload Resume (.pdf / .docx)', callback_data: 'PROMPT_UPLOAD' }
+      ],
       [
         { text: '🔍 Find Jobs Now', callback_data: 'TRIGGER_PIPELINE' },
         { text: '🤝 Find Recruiters', callback_data: 'PROMPT_RECRUITERS' }
@@ -294,6 +304,19 @@ async function pollLoop() {
                   [{ text: '📖 Help & Commands', callback_data: 'VIEW_HELP' }]
                 ]
               });
+              continue;
+            }
+
+            // Callback for Resume Upload Prompt
+            if (action === 'PROMPT_UPLOAD') {
+              onboardingHandler.setActiveState(senderId, { action: 'AWAIT_RESUME_FILE' });
+              await sendTelegramMessage(
+                senderId,
+                `📑 <b>Upload Resume (.pdf / .docx / .txt)</b>\n\n` +
+                `✨ Please attach and send your resume file directly in this chat!\n\n` +
+                `I will parse your work history, verified skills, and experience to calibrate your master profile.\n\n` +
+                `<i>(Type <code>/cancel</code> anytime to abort)</i>`
+              );
               continue;
             }
 
@@ -450,7 +473,8 @@ async function pollLoop() {
 
             // Help & Start Commands
             if (['/help', '/start', '/commands', '/info'].includes(cmd)) {
-              await sendTelegramMessage(senderId, renderHelpMessage(), getHelpKeyboard());
+              const isStart = (cmd === '/start');
+              await sendTelegramMessage(senderId, renderHelpMessage(isStart), getHelpKeyboard());
               continue;
             }
 
