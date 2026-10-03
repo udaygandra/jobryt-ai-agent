@@ -7,7 +7,7 @@
 
 ## ⚡ Quick Start: Get Running in 3 Minutes
 
-### 🪄 Option A: The 60-Second Interactive Setup Wizard (Recommended for Non-Tech Users)
+### 🪄 Option A: The 2 min Interactive Setup Wizard (Recommended)
 
 Run this single command in your terminal. It will guide you step-by-step, **auto-generate your security encryption keys**, and write your `.env` configuration file automatically:
 
