@@ -16,6 +16,7 @@ git clone https://github.com/udaygandra/jobryt-ai-agent.git
 cd jobryt-ai-agent
 npm install
 node setup.js   # or: npm run setup
+npm start       # Launches n8n engine, Telegram bot & automated sync
 ```
 
 ---
@@ -394,4 +395,4 @@ For contributors and operators seeking deep implementation details:
 ---
 
 ## 📄 License
-MIT License — built for autonomous, personal job search automation.
+PolyForm Noncommercial License 1.0.0 (`PolyForm-Noncommercial-1.0.0`) — free for personal, educational, and non-commercial job search automation.
