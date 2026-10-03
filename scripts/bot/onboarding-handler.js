@@ -31,7 +31,7 @@ const {
   detectCandidateTimezone
 } = require('../core/geo-helper');
 const { getSettings, updateSettings } = require('../core/settings-helper');
-const { parseResume } = require('../engine/resume-to-profile');
+const { parseResume, roundYearsOfExperience } = require('../engine/resume-to-profile');
 
 const botToken = process.env.TELEGRAM_BOT_TOKEN;
 
@@ -152,37 +152,23 @@ async function startOnboarding(filePath, chatId) {
     if (!fs.existsSync(profilesDir)) fs.mkdirSync(profilesDir, { recursive: true });
     fs.writeFileSync(path.join(profilesDir, 'staged_imported_profile.json'), JSON.stringify(profile, null, 2));
 
+    const scannedExp = profile.years_of_experience || 0;
+    const roundedExp = roundYearsOfExperience(scannedExp);
+    profile.years_of_experience = roundedExp;
+
     const locationOptions = extractLocationOptions(profile);
     const roleData = generateSmartRoleSuggestions(profile);
 
-    // Save initial state
+    // Save initial state for Experience Confirmation
     setActiveState(chatId, {
-      action: 'AWAIT_LOCATION_CHOICE',
+      action: 'AWAIT_EXP_CONFIRMATION',
       stagedProfile: profile,
       locationOptions,
       primaryRole: roleData.primaryRole,
       seniorityRole: roleData.seniorityRole,
-      yearsOfExp: roleData.yearsOfExp,
+      yearsOfExp: roundedExp,
       variationsStr: roleData.variationsStr
     });
-
-    // Build Step 1 UI
-    const geo = loadGeoHierarchy();
-    const inline_keyboard = locationOptions.map((opt, idx) => {
-      let icon = '📍';
-      const low = opt.toLowerCase();
-      if (geo.caProvs.has(low) || low.includes('canada') || low.includes('gta') || low.includes('toronto') || low.includes('vancouver') || low.includes('montreal') || low.includes('calgary') || low.includes('ottawa')) {
-        icon = '🍁';
-      } else if (geo.usStates.has(low) || low.includes('united states') || low.includes('usa') || low.includes('tx') || low.includes('ny') || low.includes('ca')) {
-        icon = '🇺🇸';
-      } else if (low.includes('remote') || low.includes('anywhere') || low.includes('worldwide')) {
-        icon = '🌐';
-      } else if (low.includes('north america') || low.includes('us & canada')) {
-        icon = '🌎';
-      }
-      return [{ text: `${icon} ${opt}`, callback_data: `ONBOARD_LOC:${idx}` }];
-    });
-    inline_keyboard.push([{ text: '✍️ Type Custom Location(s)', callback_data: 'ONBOARD_LOC:CUSTOM' }]);
 
     const detectedLoc = profile.contact?.location || profile.locations?.[0] || 'Detected from profile';
     const totalBullets = (profile.experience || []).reduce((acc, exp) => acc + (exp.bullets ? exp.bullets.length : 0), 0);
@@ -191,15 +177,22 @@ async function startOnboarding(filePath, chatId) {
       `👤 <b>Candidate:</b> ${profile.name}\n` +
       `💼 <b>Roles Extracted:</b> ${(profile.experience || []).length} positions (${totalBullets} bullets preserved)\n` +
       `🛠️ <b>Skills Indexed:</b> ${(profile.skills || []).length} verified skills\n` +
-      `📍 <b>Detected Home Base:</b> ${detectedLoc}\n\n` +
+      `📍 <b>Detected Home Base:</b> ${detectedLoc}\n` +
+      `⏳ <b>Scanned Total Experience:</b> <code>${roundedExp} years</code>\n\n` +
       `━━━━━━━━━━━━━━━━━━━━\n` +
-      `📍 <b>Step 1 of 3: Target Geographic Scope</b>\n` +
-      `Where do you want to target your job search?\n\n` +
-      `• <i>Tap a suggested scope below, OR</i>\n` +
-      `• <i>Tap 'Type Custom' or type directly in chat (e.g. <code>Toronto, ON; Remote</code> or <code>Austin, TX</code>)</i>`;
+      `⏳ <b>Verify Years of Experience</b>\n` +
+      `We scanned <b>${roundedExp} years</b> of experience from your resume.\n\n` +
+      `Is this accurate? If not, please enter your total years (e.g. <code>6</code>, <code>6.5</code>, <code>7</code>):\n` +
+      `• <i>Tap <b>"Confirm ${roundedExp} Years"</b> below, OR</i>\n` +
+      `• <i>Reply in chat with your exact years (e.g. <code>6</code>, <code>6.5</code>, <code>7</code>)</i>`;
+
+    const inline_keyboard = [
+      [{ text: `✅ Confirm ${roundedExp} Years`, callback_data: 'ONBOARD_EXP:CONFIRM' }],
+      [{ text: '✍️ Type Custom Years in Chat', callback_data: 'ONBOARD_EXP:CUSTOM' }]
+    ];
 
     await sendTelegramMessage(chatId, msg, { inline_keyboard });
-    console.log(`[Onboarding] Step 1 prompt delivered to chat ${chatId}`);
+    console.log(`[Onboarding] Experience verification prompt delivered to chat ${chatId}`);
     return true;
   } catch (err) {
     console.error(`[Onboarding] Ingestion failed:`, err);
@@ -219,6 +212,86 @@ async function startOnboarding(filePath, chatId) {
       console.warn(`[Onboarding] Warning deleting resume file: ${e.message}`);
     }
   }
+}
+
+// ── Step 0.5 Handling: Experience Verification ────────────────────────────────
+async function handleExpStep(chatId, choiceVal, isCustom = false) {
+  const userState = getActiveState(chatId);
+  if (!userState || !userState.stagedProfile) return false;
+
+  if (choiceVal === 'CUSTOM' && !isCustom) {
+    await sendTelegramMessage(
+      chatId,
+      `✍️ <b>Custom Years of Experience:</b>\n\nPlease reply in chat with your total years of experience (e.g. <code>6</code>, <code>6.5</code>, <code>7</code>).\n\n<i>(Type <code>/cancel</code> to abort)</i>`
+    );
+    return true;
+  }
+
+  let finalYears = userState.yearsOfExp || 1;
+  if (isCustom) {
+    const rawNum = parseFloat(String(choiceVal).replace(/[^0-9.]/g, ''));
+    if (!isNaN(rawNum) && rawNum >= 0) {
+      finalYears = roundYearsOfExperience(rawNum);
+    }
+  } else {
+    finalYears = roundYearsOfExperience(userState.yearsOfExp || 1);
+  }
+
+  userState.stagedProfile.years_of_experience = finalYears;
+  userState.yearsOfExp = finalYears;
+
+  // Re-generate smart role suggestions with verified experience
+  const roleData = generateSmartRoleSuggestions(userState.stagedProfile);
+  userState.primaryRole = userState.primaryRole || roleData.primaryRole;
+  userState.seniorityRole = roleData.seniorityRole;
+  userState.variationsStr = userState.variationsStr || roleData.variationsStr;
+  if (!userState.variationsStr.includes(';') && roleData.variationsStr.includes(';')) {
+    userState.variationsStr = roleData.variationsStr;
+  }
+
+  return await sendLocationStepPrompt(chatId, userState);
+}
+
+async function sendLocationStepPrompt(chatId, userState) {
+  const locationOptions = userState.locationOptions || extractLocationOptions(userState.stagedProfile);
+
+  setActiveState(chatId, {
+    action: 'AWAIT_LOCATION_CHOICE',
+    stagedProfile: userState.stagedProfile,
+    locationOptions,
+    primaryRole: userState.primaryRole || 'Target Role',
+    seniorityRole: userState.seniorityRole || 'Target Role',
+    yearsOfExp: userState.stagedProfile.years_of_experience,
+    variationsStr: userState.variationsStr || 'Target Role'
+  });
+
+  const geo = loadGeoHierarchy();
+  const inline_keyboard = locationOptions.map((opt, idx) => {
+    let icon = '📍';
+    const low = opt.toLowerCase();
+    if (geo.caProvs.has(low) || low.includes('canada') || low.includes('gta') || low.includes('toronto') || low.includes('vancouver') || low.includes('montreal') || low.includes('calgary') || low.includes('ottawa')) {
+      icon = '🍁';
+    } else if (geo.usStates.has(low) || low.includes('united states') || low.includes('usa') || low.includes('tx') || low.includes('ny') || low.includes('ca')) {
+      icon = '🇺🇸';
+    } else if (low.includes('remote') || low.includes('anywhere') || low.includes('worldwide')) {
+      icon = '🌐';
+    } else if (low.includes('north america') || low.includes('us & canada')) {
+      icon = '🌎';
+    }
+    return [{ text: `${icon} ${opt}`, callback_data: `ONBOARD_LOC:${idx}` }];
+  });
+  inline_keyboard.push([{ text: '✍️ Type Custom Location(s)', callback_data: 'ONBOARD_LOC:CUSTOM' }]);
+
+  const msg = `⏳ <b>Verified Experience:</b> <b>${userState.stagedProfile.years_of_experience} years</b>\n\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    `📍 <b>Step 1 of 3: Target Geographic Scope</b>\n` +
+    `Where do you want to target your job search?\n\n` +
+    `• <i>Tap a suggested scope below, OR</i>\n` +
+    `• <i>Tap 'Type Custom' or type directly in chat (e.g. <code>Toronto, ON; Remote</code> or <code>Austin, TX</code>)</i>`;
+
+  await sendTelegramMessage(chatId, msg, { inline_keyboard });
+  console.log(`[Onboarding] Step 1 prompt delivered to chat ${chatId}`);
+  return true;
 }
 
 // ── Step 1 Handling: Location Choice ─────────────────────────────────────────
@@ -449,6 +522,12 @@ async function processUpdate(update) {
     const chatId = cb.from?.id || cb.message?.chat?.id;
     const cbId = cb.id;
 
+    if (data.startsWith('ONBOARD_EXP:')) {
+      await answerCallbackQuery(cbId);
+      const choice = data.replace('ONBOARD_EXP:', '');
+      return await handleExpStep(chatId, choice, false);
+    }
+
     if (data.startsWith('ONBOARD_LOC:')) {
       await answerCallbackQuery(cbId);
       const choice = data.replace('ONBOARD_LOC:', '');
@@ -488,6 +567,9 @@ async function processUpdate(update) {
     const state = getActiveState(chatId);
     if (!state) return false;
 
+    if (state.action === 'AWAIT_EXP_CONFIRMATION') {
+      return await handleExpStep(chatId, text, true);
+    }
     if (state.action === 'AWAIT_LOCATION_CHOICE') {
       return await handleLocationStep(chatId, text, true);
     }

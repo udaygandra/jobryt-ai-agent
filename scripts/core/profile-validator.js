@@ -173,7 +173,18 @@ function validateProfileJson(rawInput) {
       status: (contact.status || parsed.status || 'Work Authorized').trim(),
     },
     summary: (parsed.summary || '').trim(),
+    total_experience_stated: typeof parsed.total_experience_stated === 'string' ? parsed.total_experience_stated.trim() : '',
     skills: parsed.skills.map(s => String(s).trim()).filter(Boolean),
+    skills_familiar: Array.isArray(parsed.skills_familiar) ? parsed.skills_familiar.map(s => String(s).trim()).filter(Boolean) : [],
+    skills_categorized: Array.isArray(parsed.skills_categorized)
+      ? parsed.skills_categorized
+          .filter(c => c && typeof c.category === 'string' && Array.isArray(c.items))
+          .map(c => ({
+            category: c.category.trim(),
+            items: c.items.map(i => String(i).trim()).filter(Boolean),
+          }))
+          .filter(c => c.category && c.items.length > 0)
+      : [],
     experience: parsed.experience.map(exp => ({
       role: String(exp.role || '').trim(),
       company: String(exp.company || '').trim(),
@@ -192,6 +203,7 @@ function validateProfileJson(rawInput) {
       : [],
     projects: Array.isArray(parsed.projects) ? parsed.projects : [],
     writing_sample: (parsed.writing_sample || parsed.summary || '').trim(),
+    years_of_experience: typeof parsed.years_of_experience === 'number' ? parsed.years_of_experience : undefined,
   };
 
   return { valid: true, profile: cleanProfile, warnings };

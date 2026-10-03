@@ -575,16 +575,28 @@ function calculateExperienceYears(profile) {
 
 function generateSmartRoleSuggestions(profile) {
   const years = calculateExperienceYears(profile);
-  const titles = Array.isArray(profile?.target_titles) ? profile.target_titles : ['Target Role'];
-  const primaryRole = titles[0] || 'Candidate';
+  let titles = Array.isArray(profile?.target_titles) && profile.target_titles.length > 0 ? profile.target_titles : [];
+  if (titles.length === 0 && Array.isArray(profile?.experience) && profile.experience.length > 0) {
+    titles = profile.experience.map(e => e.role).filter(Boolean);
+  }
+  if (titles.length === 0) titles = ['Target Role'];
+
+  const primaryRole = titles[0] || 'Target Role';
   const prefix = years >= 8 ? 'Lead' : (years >= 4 ? 'Senior' : 'Associate');
-  
+  const seniorityRole = primaryRole.toLowerCase().startsWith('senior') || primaryRole.toLowerCase().startsWith('lead') || primaryRole.toLowerCase().startsWith('associate')
+    ? primaryRole
+    : `${prefix} ${primaryRole}`;
+
+  const variationsSet = new Set(titles);
+  if (seniorityRole) variationsSet.add(seniorityRole);
+  const variations = Array.from(variationsSet);
+
   return {
     primaryRole,
     yearsOfExp: years,
-    seniorityRole: `${prefix} ${primaryRole}`,
-    suggestedRoles: titles,
-    variationsStr: titles.join('; ')
+    seniorityRole,
+    suggestedRoles: variations,
+    variationsStr: variations.join('; ')
   };
 }
 

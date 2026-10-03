@@ -42,12 +42,13 @@ function buildFullDepthResumePdf({
        .fillColor(darkColor)
        .text(candidateName.toUpperCase(), { align: 'center', characterSpacing: 1 });
 
-    const jobTitle = targetRole || (profile.target_titles && profile.target_titles[0]) || 'Professional';
+    // Lock candidate header profession to their authentic verified target title from profile
+    const candidateProfession = (profile.target_titles && profile.target_titles[0]) || profile.profession || 'Professional';
     doc.font('Helvetica-Bold')
        .fontSize(10.5)
        .fillColor(primaryColor)
        .moveDown(0.15)
-       .text(jobTitle.toUpperCase(), { align: 'center', characterSpacing: 1.2 });
+       .text(candidateProfession.toUpperCase(), { align: 'center', characterSpacing: 1.2 });
 
     // Contact Information
     const contact = profile.contact || {};
@@ -93,23 +94,56 @@ function buildFullDepthResumePdf({
 
     // 3. CORE COMPETENCIES & SKILLS
     addSectionHeader('Core Competencies & Skills');
-    let skillGroups = categorizedSkills;
-    if (!skillGroups || typeof skillGroups !== 'object' || Object.keys(skillGroups).length === 0) {
-      if (profile.skills_categorized && typeof profile.skills_categorized === 'object' && Object.keys(profile.skills_categorized).length > 0) {
-        skillGroups = profile.skills_categorized;
-      } else {
-        const skills = Array.isArray(profile.skills) ? profile.skills : [];
-        if (skills.length > 0) {
-          skillGroups = { 'Core Competencies': skills };
-        } else {
-          skillGroups = {};
+
+    function parseSkillGroups(input, fallbackSkills = []) {
+      const groups = {};
+
+      const addItems = (label, list) => {
+        if (!label || !Array.isArray(list) || list.length === 0) return;
+        const cleanLabel = String(label).trim();
+        const cleanList = list.map(s => typeof s === 'string' ? s.trim() : (s?.name || String(s))).filter(Boolean);
+        if (cleanList.length > 0) {
+          groups[cleanLabel] = (groups[cleanLabel] || []).concat(cleanList);
+        }
+      };
+
+      if (Array.isArray(input)) {
+        for (const item of input) {
+          if (typeof item === 'string') {
+            addItems('Core Competencies', [item]);
+          } else if (item && typeof item === 'object') {
+            const label = item.category || item.name || item.group || item.title || 'Core Competencies';
+            const list = Array.isArray(item.items) ? item.items : (Array.isArray(item.skills) ? item.skills : []);
+            addItems(label, list);
+          }
+        }
+      } else if (input && typeof input === 'object') {
+        for (const [key, val] of Object.entries(input)) {
+          if (Array.isArray(val)) {
+            addItems(key, val);
+          } else if (typeof val === 'string') {
+            addItems(key, [val]);
+          } else if (val && typeof val === 'object') {
+            const label = val.category || val.name || key;
+            const list = Array.isArray(val.items) ? val.items : (Array.isArray(val.skills) ? val.skills : []);
+            addItems(label, list);
+          }
         }
       }
+
+      if (Object.keys(groups).length === 0 && Array.isArray(fallbackSkills) && fallbackSkills.length > 0) {
+        addItems('Core Competencies & Technical Skills', fallbackSkills);
+      }
+
+      return groups;
     }
+
+    const skillGroups = parseSkillGroups(categorizedSkills || profile.skills_categorized, profile.skills);
 
     for (const [groupLabel, skills] of Object.entries(skillGroups)) {
       checkPageBreak(18);
-      const skillList = Array.isArray(skills) ? skills.join(', ') : String(skills);
+      const uniqueSkills = [...new Set(skills)];
+      const skillList = uniqueSkills.join(', ');
       doc.font('Helvetica-Bold')
          .fontSize(8.5)
          .fillColor(darkColor)
@@ -129,17 +163,23 @@ function buildFullDepthResumePdf({
       checkPageBreak(50);
       if (expIdx > 0) doc.moveDown(0.3);
 
+      // Strictly lock role title and company to candidate's verified profile experience
+      const origExp = (profile.experience && profile.experience[expIdx]) || {};
+      const verifiedRole = exp.role || origExp.role || 'Role';
+      const verifiedCompany = exp.company || origExp.company || 'Company';
+      const verifiedDates = origExp.dates || exp.dates || '';
+
       // Role and Dates header line
       doc.font('Helvetica-Bold')
          .fontSize(9.5)
          .fillColor(darkColor)
-         .text(exp.role || 'Role', { continued: true })
+         .text(verifiedRole, { continued: true })
          .font('Helvetica-Bold')
          .fillColor(primaryColor)
-         .text(` — ${exp.company || 'Company'}`, { continued: true })
+         .text(` — ${verifiedCompany}`, { continued: true })
          .font('Helvetica')
          .fillColor(grayColor)
-         .text(`   |   ${exp.dates || ''}`, { align: 'right' });
+         .text(`   |   ${verifiedDates}`, { align: 'right' });
 
       doc.moveDown(0.15);
 
@@ -192,7 +232,7 @@ function buildFullDepthResumePdf({
          .fontSize(7.5)
          .fillColor('#94a3b8')
          .text(
-           `${candidateName}  —  Tailored Resume (${jobTitle})  |  Page ${i + 1} of ${range.count}`,
+           `${candidateName}  —  Tailored Resume (${candidateProfession})  |  Page ${i + 1} of ${range.count}`,
            doc.page.margins.left,
            doc.page.height - 20,
            { align: 'center', width: doc.page.width - (doc.page.margins.left * 2), lineBreak: false }

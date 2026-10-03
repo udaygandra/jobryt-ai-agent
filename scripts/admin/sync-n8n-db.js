@@ -26,7 +26,10 @@ const crypto = require('crypto');
 // ── Configuration ───────────────────────────────────────────────────────────
 const workflowsDir = process.env.WORKFLOWS_DIR
   || (fs.existsSync('/workflows') ? '/workflows' : path.join(__dirname, '../workflows'));
-const n8nDbPath = process.env.N8N_DB_PATH || '/home/node/.n8n/database.sqlite';
+let n8nDbPath = (process.env.N8N_DB_PATH || '').trim();
+if (!n8nDbPath || n8nDbPath.startsWith('#')) {
+  n8nDbPath = '/home/node/.n8n/database.sqlite';
+}
 
 // This script only runs inside Docker where the database exists
 if (!fs.existsSync(n8nDbPath)) {

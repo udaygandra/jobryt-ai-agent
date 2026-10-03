@@ -77,24 +77,190 @@ function cleanDocxAndMarkdownArtifacts(str) {
     .trim();
 }
 
-function calculateYearsOfExperience(experience = []) {
+const MONTH_MAP = {
+  jan: 1, january: 1,
+  feb: 2, february: 2,
+  mar: 3, march: 3,
+  apr: 4, april: 4,
+  may: 5,
+  jun: 6, june: 6,
+  jul: 7, july: 7,
+  aug: 8, august: 8,
+  sep: 9, sept: 9, september: 9,
+  oct: 10, october: 10,
+  nov: 11, november: 11,
+  dec: 12, december: 12
+};
+
+function getJsDate(d) {
+  if (!d) return new Date();
+  if (typeof d.toJSDate === 'function') return d.toJSDate();
+  if (d instanceof Date) return d;
+  return new Date(d);
+}
+
+function parseDateEndpoint(str, isEnd, nowRef = new Date()) {
+  if (!str) return null;
+  const s = str.trim().toLowerCase();
+  const now = getJsDate(nowRef);
+  if (['present', 'current', 'now', 'today'].includes(s)) {
+    return { year: now.getFullYear(), month: now.getMonth() + 1 };
+  }
+
+  // Month + Year, e.g. "July 2022", "Aug 2021", "Sept 2020"
+  const myMatch = s.match(/^([a-z]+)\s*(\d{4})$/);
+  if (myMatch && MONTH_MAP[myMatch[1]]) {
+    return { year: parseInt(myMatch[2], 10), month: MONTH_MAP[myMatch[1]] };
+  }
+
+  // Slash or dash: MM/YYYY or MM-YYYY
+  const slashMatch = s.match(/^(\d{1,2})[\/\-](\d{4})$/);
+  if (slashMatch) {
+    const m = parseInt(slashMatch[1], 10);
+    const y = parseInt(slashMatch[2], 10);
+    if (m >= 1 && m <= 12) return { year: y, month: m };
+  }
+
+  // YYYY/MM or YYYY-MM
+  const yFirstMatch = s.match(/^(\d{4})[\/\-](\d{1,2})$/);
+  if (yFirstMatch) {
+    const y = parseInt(yFirstMatch[1], 10);
+    const m = parseInt(yFirstMatch[2], 10);
+    if (m >= 1 && m <= 12) return { year: y, month: m };
+  }
+
+  // Year only, e.g. "2020"
+  const yOnlyMatch = s.match(/^(\d{4})$/);
+  if (yOnlyMatch) {
+    const y = parseInt(yOnlyMatch[1], 10);
+    return { year: y, month: isEnd ? 12 : 1 };
+  }
+
+  return null;
+}
+
+function parseExperienceDateRange(datesStr, nowRef = new Date()) {
+  if (!datesStr || typeof datesStr !== 'string') return null;
+  const cleaned = datesStr.replace(/[\u2013\u2014]/g, '-').trim();
+  const parts = cleaned.split(/\s*(?:-|–|—|\bto\b)\s*/i).filter(Boolean);
+  if (parts.length < 2) return null;
+
+  const start = parseDateEndpoint(parts[0], false, nowRef);
+  const end = parseDateEndpoint(parts[1], true, nowRef);
+
+  if (start && end) {
+    const startIdx = start.year * 12 + (start.month - 1);
+    const endIdx = end.year * 12 + (end.month - 1);
+    if (startIdx <= endIdx) {
+      return { start: startIdx, end: endIdx };
+    }
+  }
+  return null;
+}
+
+function calculateYearsOfExperience(experience = [], referenceDate = new Date()) {
   if (!Array.isArray(experience) || experience.length === 0) return 0;
-  let totalMonths = 0;
+
+  const intervals = [];
   for (const exp of experience) {
-    const datesStr = exp.dates || '';
-    const match = datesStr.match(/([a-zA-Z]+)?\s*(\d{4})\s*[\u2013\u2014\-–—to]+\s*([a-zA-Z]+)?\s*(\d{4}|present|current)/i);
-    if (match) {
-      const startYear = parseInt(match[2], 10);
-      const endYear = match[4].toLowerCase().includes('pres') || match[4].toLowerCase().includes('curr')
-        ? new Date().getFullYear()
-        : parseInt(match[4], 10);
-      if (!isNaN(startYear) && !isNaN(endYear) && endYear >= startYear) {
-        totalMonths += Math.max(12, (endYear - startYear) * 12);
+    const interval = parseExperienceDateRange(exp.dates, referenceDate);
+    if (interval) {
+      intervals.push(interval);
+    }
+  }
+
+  if (intervals.length === 0) return 0;
+
+  // Sort intervals by start month
+  intervals.sort((a, b) => a.start - b.start);
+
+  // Merge overlapping intervals so concurrent roles are not double-counted
+  const merged = [];
+  let current = { ...intervals[0] };
+  for (let i = 1; i < intervals.length; i++) {
+    const next = intervals[i];
+    if (next.start <= current.end) {
+      current.end = Math.max(current.end, next.end);
+    } else {
+      merged.push(current);
+      current = { ...next };
+    }
+  }
+  merged.push(current);
+
+  let totalMonths = 0;
+  for (const int of merged) {
+    const months = int.end - int.start + 1;
+    totalMonths += Math.max(1, months);
+  }
+
+  const rawYears = totalMonths / 12;
+  return roundYearsOfExperience(rawYears);
+}
+
+function roundYearsOfExperience(val) {
+  const num = typeof val === 'number' ? val : parseFloat(String(val || '').replace(/[^0-9.]/g, ''));
+  if (isNaN(num) || num < 0) return 0;
+  const rounded = Math.round(num * 2) / 2;
+  return Number(rounded.toFixed(1));
+}
+
+function normalizeCategorizedSkills(rawCategorized = [], flatSkills = []) {
+  const flatSet = new Set(flatSkills.map(s => s.trim().toLowerCase()));
+  const skillToExact = new Map(flatSkills.map(s => [s.trim().toLowerCase(), s.trim()]));
+
+  const categoryMap = new Map();
+  const assigned = new Set();
+
+  if (Array.isArray(rawCategorized)) {
+    for (const catObj of rawCategorized) {
+      if (!catObj || typeof catObj !== 'object') continue;
+      const catName = (catObj.category || '').trim();
+      if (!catName || !Array.isArray(catObj.items)) continue;
+
+      if (!categoryMap.has(catName)) {
+        categoryMap.set(catName, []);
+      }
+
+      for (const item of catObj.items) {
+        if (typeof item !== 'string') continue;
+        const norm = item.trim().toLowerCase();
+        // Rule: item must exist in flatSkills, and appear in exactly one category
+        if (flatSet.has(norm) && !assigned.has(norm)) {
+          const exact = skillToExact.get(norm);
+          categoryMap.get(catName).push(exact);
+          assigned.add(norm);
+        }
       }
     }
   }
-  const years = Math.round(totalMonths / 12);
-  return years > 0 ? years : 1;
+
+  // Any remaining skills from flatSkills that were not assigned fall back to 'Other'
+  const unassigned = [];
+  for (const s of flatSkills) {
+    const norm = s.trim().toLowerCase();
+    if (!assigned.has(norm)) {
+      unassigned.push(skillToExact.get(norm));
+      assigned.add(norm);
+    }
+  }
+
+  if (unassigned.length > 0) {
+    if (!categoryMap.has('Other')) {
+      categoryMap.set('Other', []);
+    }
+    categoryMap.get('Other').push(...unassigned);
+  }
+
+  // Format as [{ category: '...', items: [...] }], omitting empty categories
+  const result = [];
+  for (const [category, items] of categoryMap.entries()) {
+    if (items.length > 0) {
+      result.push({ category, items });
+    }
+  }
+
+  return result;
 }
 
 function extractDocxText(buf) {
@@ -421,6 +587,31 @@ async function parseResume(inputFilePath, options = {}) {
   }
   parsedProfile.years_of_experience = calculateYearsOfExperience(parsedProfile.experience);
 
+  // Normalize skills_categorized so every item in skills is in exactly one category
+  parsedProfile.skills_categorized = normalizeCategorizedSkills(parsedProfile.skills_categorized, parsedProfile.skills);
+
+  // Preserve stated total experience verbatim
+  if (typeof parsedProfile.total_experience_stated !== 'string') {
+    parsedProfile.total_experience_stated = '';
+  }
+
+  // Warning check if computed and stated totals differ by more than 1 year
+  if (parsedProfile.total_experience_stated) {
+    const statedMatch = parsedProfile.total_experience_stated.match(/(\d+(?:\.\d+)?)/);
+    if (statedMatch) {
+      const statedYears = parseFloat(statedMatch[1]);
+      if (!isNaN(statedYears) && Math.abs(parsedProfile.years_of_experience - statedYears) > 1.0) {
+        console.warn('\n⚠️ [Experience Calculation Warning] Stated vs Computed discrepancy:');
+        console.warn(`   • Resume Stated Experience: "${parsedProfile.total_experience_stated}" (~${statedYears} years)`);
+        console.warn(`   • Computed Experience:      ${parsedProfile.years_of_experience} years`);
+        console.warn('   • Role Breakdown:');
+        (parsedProfile.experience || []).forEach((exp, idx) => {
+          console.warn(`     ${idx + 1}. ${exp.role} @ ${exp.company} (${exp.dates})`);
+        });
+      }
+    }
+  }
+
   // ── Step 3: Save Output ───────────────────────────────────────────────────
   if (isDryRun) {
     console.log(`ℹ️ [DRY RUN] Parsing successful. Skipping write.`);
@@ -449,7 +640,14 @@ async function parseResume(inputFilePath, options = {}) {
   console.log('\n--- Extraction Summary ---');
   console.log(`👤 Name: ${parsedProfile.name || 'N/A'}`);
   console.log(`💼 Roles Extracted: ${(parsedProfile.experience || []).length}`);
-  console.log(`🛠️  Skills Extracted: ${(parsedProfile.skills || []).length}`);
+  console.log(`⏳ Computed Experience: ${parsedProfile.years_of_experience} years${parsedProfile.total_experience_stated ? ` (Stated: "${parsedProfile.total_experience_stated}")` : ''}`);
+  console.log(`🛠️  Skills Extracted: ${(parsedProfile.skills || []).length} items`);
+  if (Array.isArray(parsedProfile.skills_categorized) && parsedProfile.skills_categorized.length > 0) {
+    console.log(`📂 Skill Categories (${parsedProfile.skills_categorized.length}):`);
+    parsedProfile.skills_categorized.forEach(c => {
+      console.log(`   • ${c.category} (${c.items.length}): ${c.items.join(', ')}`);
+    });
+  }
 
   return parsedProfile;
 }
@@ -480,5 +678,7 @@ module.exports = {
   parseResume,
   SYSTEM_PROMPT,
   calculateYearsOfExperience,
+  roundYearsOfExperience,
+  normalizeCategorizedSkills,
   cleanDocxAndMarkdownArtifacts
 };
