@@ -1,0 +1,1560 @@
+{
+  "canadian_provinces": [
+    {
+      "code": "ON",
+      "name": "Ontario"
+    },
+    {
+      "code": "QC",
+      "name": "Quebec"
+    },
+    {
+      "code": "BC",
+      "name": "British Columbia"
+    },
+    {
+      "code": "AB",
+      "name": "Alberta"
+    },
+    {
+      "code": "MB",
+      "name": "Manitoba"
+    },
+    {
+      "code": "SK",
+      "name": "Saskatchewan"
+    },
+    {
+      "code": "NS",
+      "name": "Nova Scotia"
+    },
+    {
+      "code": "NB",
+      "name": "New Brunswick"
+    },
+    {
+      "code": "NL",
+      "name": "Newfoundland and Labrador"
+    },
+    {
+      "code": "PE",
+      "name": "Prince Edward Island"
+    },
+    {
+      "code": "NT",
+      "name": "Northwest Territories"
+    },
+    {
+      "code": "NU",
+      "name": "Nunavut"
+    },
+    {
+      "code": "YT",
+      "name": "Yukon"
+    }
+  ],
+  "us_states": [
+    {
+      "code": "AL",
+      "name": "Alabama"
+    },
+    {
+      "code": "AK",
+      "name": "Alaska"
+    },
+    {
+      "code": "AZ",
+      "name": "Arizona"
+    },
+    {
+      "code": "AR",
+      "name": "Arkansas"
+    },
+    {
+      "code": "CA",
+      "name": "California"
+    },
+    {
+      "code": "CO",
+      "name": "Colorado"
+    },
+    {
+      "code": "CT",
+      "name": "Connecticut"
+    },
+    {
+      "code": "DE",
+      "name": "Delaware"
+    },
+    {
+      "code": "DC",
+      "name": "District of Columbia"
+    },
+    {
+      "code": "FL",
+      "name": "Florida"
+    },
+    {
+      "code": "GA",
+      "name": "Georgia"
+    },
+    {
+      "code": "HI",
+      "name": "Hawaii"
+    },
+    {
+      "code": "ID",
+      "name": "Idaho"
+    },
+    {
+      "code": "IL",
+      "name": "Illinois"
+    },
+    {
+      "code": "IN",
+      "name": "Indiana"
+    },
+    {
+      "code": "IA",
+      "name": "Iowa"
+    },
+    {
+      "code": "KS",
+      "name": "Kansas"
+    },
+    {
+      "code": "KY",
+      "name": "Kentucky"
+    },
+    {
+      "code": "LA",
+      "name": "Louisiana"
+    },
+    {
+      "code": "ME",
+      "name": "Maine"
+    },
+    {
+      "code": "MD",
+      "name": "Maryland"
+    },
+    {
+      "code": "MA",
+      "name": "Massachusetts"
+    },
+    {
+      "code": "MI",
+      "name": "Michigan"
+    },
+    {
+      "code": "MN",
+      "name": "Minnesota"
+    },
+    {
+      "code": "MS",
+      "name": "Mississippi"
+    },
+    {
+      "code": "MO",
+      "name": "Missouri"
+    },
+    {
+      "code": "MT",
+      "name": "Montana"
+    },
+    {
+      "code": "NE",
+      "name": "Nebraska"
+    },
+    {
+      "code": "NV",
+      "name": "Nevada"
+    },
+    {
+      "code": "NH",
+      "name": "New Hampshire"
+    },
+    {
+      "code": "NJ",
+      "name": "New Jersey"
+    },
+    {
+      "code": "NM",
+      "name": "New Mexico"
+    },
+    {
+      "code": "NY",
+      "name": "New York State"
+    },
+    {
+      "code": "NC",
+      "name": "North Carolina"
+    },
+    {
+      "code": "ND",
+      "name": "North Dakota"
+    },
+    {
+      "code": "OH",
+      "name": "Ohio"
+    },
+    {
+      "code": "OK",
+      "name": "Oklahoma"
+    },
+    {
+      "code": "OR",
+      "name": "Oregon"
+    },
+    {
+      "code": "PA",
+      "name": "Pennsylvania"
+    },
+    {
+      "code": "RI",
+      "name": "Rhode Island"
+    },
+    {
+      "code": "SC",
+      "name": "South Carolina"
+    },
+    {
+      "code": "SD",
+      "name": "South Dakota"
+    },
+    {
+      "code": "TN",
+      "name": "Tennessee"
+    },
+    {
+      "code": "TX",
+      "name": "Texas"
+    },
+    {
+      "code": "UT",
+      "name": "Utah"
+    },
+    {
+      "code": "VT",
+      "name": "Vermont"
+    },
+    {
+      "code": "VA",
+      "name": "Virginia"
+    },
+    {
+      "code": "WA",
+      "name": "Washington"
+    },
+    {
+      "code": "WV",
+      "name": "West Virginia"
+    },
+    {
+      "code": "WI",
+      "name": "Wisconsin"
+    },
+    {
+      "code": "WY",
+      "name": "Wyoming"
+    },
+    {
+      "code": "PR",
+      "name": "Puerto Rico"
+    }
+  ],
+  "cities": [
+    {
+      "names": [
+        "toronto",
+        "gta",
+        "mississauga",
+        "brampton",
+        "markham",
+        "vaughan",
+        "oakville",
+        "richmond hill",
+        "scarborough",
+        "north york",
+        "etobicoke",
+        "pickering",
+        "ajax",
+        "whitby",
+        "oshawa",
+        "newmarket",
+        "milton",
+        "burlington"
+      ],
+      "display_city": "Toronto, ON",
+      "metro": "GTA (Greater Toronto Area)",
+      "region": "Ontario",
+      "country": "Canada",
+      "country_code": "CA"
+    },
+    {
+      "names": [
+        "vancouver",
+        "burnaby",
+        "surrey",
+        "richmond",
+        "coquitlam",
+        "delta",
+        "langley",
+        "north vancouver",
+        "west vancouver",
+        "new westminster",
+        "maple ridge",
+        "port coquitlam"
+      ],
+      "display_city": "Vancouver, BC",
+      "metro": "Metro Vancouver & Lower Mainland",
+      "region": "British Columbia",
+      "country": "Canada",
+      "country_code": "CA"
+    },
+    {
+      "names": [
+        "montreal",
+        "laval",
+        "longueuil",
+        "brossard",
+        "terrebonne",
+        "dollard-des-ormeaux",
+        "westmount",
+        "saint-laurent"
+      ],
+      "display_city": "Montreal, QC",
+      "metro": "Greater Montreal Area",
+      "region": "Quebec",
+      "country": "Canada",
+      "country_code": "CA"
+    },
+    {
+      "names": [
+        "ottawa",
+        "gatineau",
+        "nepean",
+        "kanata",
+        "gloucester",
+        "orleans"
+      ],
+      "display_city": "Ottawa, ON",
+      "metro": "National Capital Region (Ottawa-Gatineau)",
+      "region": "Ontario",
+      "country": "Canada",
+      "country_code": "CA"
+    },
+    {
+      "names": [
+        "calgary",
+        "airdrie",
+        "cochrane",
+        "okotoks",
+        "chestermere"
+      ],
+      "display_city": "Calgary, AB",
+      "metro": "Calgary & Surrounding Region",
+      "region": "Alberta",
+      "country": "Canada",
+      "country_code": "CA"
+    },
+    {
+      "names": [
+        "edmonton",
+        "sherwood park",
+        "st. albert",
+        "st albert",
+        "spruce grove",
+        "leduc"
+      ],
+      "display_city": "Edmonton, AB",
+      "metro": "Edmonton Capital Region",
+      "region": "Alberta",
+      "country": "Canada",
+      "country_code": "CA"
+    },
+    {
+      "names": [
+        "quebec city",
+        "quebec",
+        "lévis",
+        "levis"
+      ],
+      "display_city": "Quebec City, QC",
+      "metro": "Quebec City Metropolitan Area",
+      "region": "Quebec",
+      "country": "Canada",
+      "country_code": "CA"
+    },
+    {
+      "names": [
+        "waterloo",
+        "kitchener",
+        "cambridge",
+        "kw"
+      ],
+      "display_city": "Kitchener-Waterloo, ON",
+      "metro": "Waterloo Tech Corridor",
+      "region": "Ontario",
+      "country": "Canada",
+      "country_code": "CA"
+    },
+    {
+      "names": [
+        "hamilton",
+        "ancaster",
+        "dundas",
+        "stoney creek"
+      ],
+      "display_city": "Hamilton, ON",
+      "metro": "Greater Hamilton Area",
+      "region": "Ontario",
+      "country": "Canada",
+      "country_code": "CA"
+    },
+    {
+      "names": [
+        "london",
+        "st. thomas",
+        "st thomas"
+      ],
+      "display_city": "London, ON",
+      "metro": "London & Southwestern Ontario",
+      "region": "Ontario",
+      "country": "Canada",
+      "country_code": "CA"
+    },
+    {
+      "names": [
+        "victoria",
+        "saanich",
+        "esquimalt",
+        "langford"
+      ],
+      "display_city": "Victoria, BC",
+      "metro": "Greater Victoria Region",
+      "region": "British Columbia",
+      "country": "Canada",
+      "country_code": "CA"
+    },
+    {
+      "names": [
+        "halifax",
+        "dartmouth",
+        "bedford"
+      ],
+      "display_city": "Halifax, NS",
+      "metro": "Halifax Regional Municipality",
+      "region": "Nova Scotia",
+      "country": "Canada",
+      "country_code": "CA"
+    },
+    {
+      "names": [
+        "winnipeg",
+        "brandon"
+      ],
+      "display_city": "Winnipeg, MB",
+      "metro": "Winnipeg Metro Region",
+      "region": "Manitoba",
+      "country": "Canada",
+      "country_code": "CA"
+    },
+    {
+      "names": [
+        "windsor",
+        "tecumseh",
+        "lasalle"
+      ],
+      "display_city": "Windsor, ON",
+      "metro": "Windsor-Essex Region",
+      "region": "Ontario",
+      "country": "Canada",
+      "country_code": "CA"
+    },
+    {
+      "names": [
+        "saskatoon"
+      ],
+      "display_city": "Saskatoon, SK",
+      "metro": "Saskatoon Region",
+      "region": "Saskatchewan",
+      "country": "Canada",
+      "country_code": "CA"
+    },
+    {
+      "names": [
+        "regina"
+      ],
+      "display_city": "Regina, SK",
+      "metro": "Regina Region",
+      "region": "Saskatchewan",
+      "country": "Canada",
+      "country_code": "CA"
+    },
+    {
+      "names": [
+        "st. john's",
+        "st johns",
+        "mount pearl",
+        "conception bay south"
+      ],
+      "display_city": "St. John's, NL",
+      "metro": "St. John's Metropolitan Area",
+      "region": "Newfoundland and Labrador",
+      "country": "Canada",
+      "country_code": "CA"
+    },
+    {
+      "names": [
+        "kelowna",
+        "west kelowna",
+        "vernon",
+        "penticton"
+      ],
+      "display_city": "Kelowna, BC",
+      "metro": "Okanagan Valley Region",
+      "region": "British Columbia",
+      "country": "Canada",
+      "country_code": "CA"
+    },
+    {
+      "names": [
+        "barrie",
+        "innisfil",
+        "orillia"
+      ],
+      "display_city": "Barrie, ON",
+      "metro": "Simcoe County Region",
+      "region": "Ontario",
+      "country": "Canada",
+      "country_code": "CA"
+    },
+    {
+      "names": [
+        "guelph"
+      ],
+      "display_city": "Guelph, ON",
+      "metro": "Guelph & Wellington Region",
+      "region": "Ontario",
+      "country": "Canada",
+      "country_code": "CA"
+    },
+    {
+      "names": [
+        "kingston"
+      ],
+      "display_city": "Kingston, ON",
+      "metro": "Kingston & Thousand Islands Region",
+      "region": "Ontario",
+      "country": "Canada",
+      "country_code": "CA"
+    },
+    {
+      "names": [
+        "sherbrooke",
+        "magog"
+      ],
+      "display_city": "Sherbrooke, QC",
+      "metro": "Eastern Townships (Estrie)",
+      "region": "Quebec",
+      "country": "Canada",
+      "country_code": "CA"
+    },
+    {
+      "names": [
+        "moncton",
+        "dieppe",
+        "riverview"
+      ],
+      "display_city": "Moncton, NB",
+      "metro": "Greater Moncton Area",
+      "region": "New Brunswick",
+      "country": "Canada",
+      "country_code": "CA"
+    },
+    {
+      "names": [
+        "fredericton"
+      ],
+      "display_city": "Fredericton, NB",
+      "metro": "Fredericton Capital Region",
+      "region": "New Brunswick",
+      "country": "Canada",
+      "country_code": "CA"
+    },
+    {
+      "names": [
+        "saint john",
+        "st. john",
+        "rothesay",
+        "quispamsis"
+      ],
+      "display_city": "Saint John, NB",
+      "metro": "Greater Saint John Area",
+      "region": "New Brunswick",
+      "country": "Canada",
+      "country_code": "CA"
+    },
+    {
+      "names": [
+        "charlottetown",
+        "summerside"
+      ],
+      "display_city": "Charlottetown, PE",
+      "metro": "Greater Charlottetown Area",
+      "region": "Prince Edward Island",
+      "country": "Canada",
+      "country_code": "CA"
+    },
+    {
+      "names": [
+        "whitehorse"
+      ],
+      "display_city": "Whitehorse, YT",
+      "metro": "Whitehorse Region",
+      "region": "Yukon",
+      "country": "Canada",
+      "country_code": "CA"
+    },
+    {
+      "names": [
+        "yellowknife"
+      ],
+      "display_city": "Yellowknife, NT",
+      "metro": "Yellowknife Region",
+      "region": "Northwest Territories",
+      "country": "Canada",
+      "country_code": "CA"
+    },
+    {
+      "names": [
+        "iqaluit"
+      ],
+      "display_city": "Iqaluit, NU",
+      "metro": "Iqaluit Region",
+      "region": "Nunavut",
+      "country": "Canada",
+      "country_code": "CA"
+    },
+    {
+      "names": [
+        "sudbury",
+        "greater sudbury"
+      ],
+      "display_city": "Sudbury, ON",
+      "metro": "Greater Sudbury & Northern Ontario",
+      "region": "Ontario",
+      "country": "Canada",
+      "country_code": "CA"
+    },
+    {
+      "names": [
+        "thunder bay"
+      ],
+      "display_city": "Thunder Bay, ON",
+      "metro": "Thunder Bay Region",
+      "region": "Ontario",
+      "country": "Canada",
+      "country_code": "CA"
+    },
+    {
+      "names": [
+        "st. catharines",
+        "st catharines",
+        "niagara falls",
+        "welland"
+      ],
+      "display_city": "St. Catharines-Niagara, ON",
+      "metro": "Niagara Region",
+      "region": "Ontario",
+      "country": "Canada",
+      "country_code": "CA"
+    },
+    {
+      "names": [
+        "new york",
+        "nyc",
+        "manhattan",
+        "brooklyn",
+        "queens",
+        "bronx",
+        "staten island",
+        "long island",
+        "yonkers",
+        "white plains",
+        "jersey city",
+        "hoboken",
+        "newark",
+        "stamford"
+      ],
+      "display_city": "New York, NY",
+      "metro": "NYC Metro & Tri-State Area (NY, NJ, CT)",
+      "region": "New York State",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "los angeles",
+        "la",
+        "long beach",
+        "anaheim",
+        "santa ana",
+        "irvine",
+        "glendale ca",
+        "pasadena ca",
+        "santa monica",
+        "burbank",
+        "torrance"
+      ],
+      "display_city": "Los Angeles, CA",
+      "metro": "Greater Los Angeles & Orange County",
+      "region": "California",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "chicago",
+        "naperville",
+        "aurora il",
+        "joliet",
+        "evanston",
+        "schaumburg",
+        "elgin"
+      ],
+      "display_city": "Chicago, IL",
+      "metro": "Chicagoland & Surrounding",
+      "region": "Illinois",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "houston",
+        "the woodlands",
+        "sugar land",
+        "katy",
+        "pearland",
+        "pasadena tx"
+      ],
+      "display_city": "Houston, TX",
+      "metro": "Greater Houston Region",
+      "region": "Texas",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "phoenix",
+        "scottsdale",
+        "mesa",
+        "chandler",
+        "gilbert",
+        "tempe",
+        "glendale az",
+        "peoria az"
+      ],
+      "display_city": "Phoenix, AZ",
+      "metro": "Phoenix Metro & Valley of the Sun",
+      "region": "Arizona",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "philadelphia",
+        "philly",
+        "king of prussia",
+        "camden",
+        "cherry hill"
+      ],
+      "display_city": "Philadelphia, PA",
+      "metro": "Greater Philadelphia Area (PA, NJ, DE)",
+      "region": "Pennsylvania",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "san antonio",
+        "new braunfels"
+      ],
+      "display_city": "San Antonio, TX",
+      "metro": "Greater San Antonio Region",
+      "region": "Texas",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "san diego",
+        "chula vista",
+        "oceanside",
+        "escondido",
+        "carlsbad",
+        "la jolla"
+      ],
+      "display_city": "San Diego, CA",
+      "metro": "San Diego County Region",
+      "region": "California",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "dallas",
+        "fort worth",
+        "dfw",
+        "plano",
+        "irving",
+        "arlington tx",
+        "garland",
+        "frisco",
+        "mckinney",
+        "denton"
+      ],
+      "display_city": "Dallas-Fort Worth, TX",
+      "metro": "DFW Metroplex",
+      "region": "Texas",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "austin",
+        "round rock",
+        "cedar park",
+        "georgetown tx",
+        "san marcos"
+      ],
+      "display_city": "Austin, TX",
+      "metro": "Austin Metro & Central Texas",
+      "region": "Texas",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "san francisco",
+        "sf",
+        "san jose",
+        "silicon valley",
+        "oakland",
+        "fremont",
+        "berkeley",
+        "palo alto",
+        "mountain view",
+        "sunnyvale",
+        "santa clara",
+        "redwood city",
+        "san mateo"
+      ],
+      "display_city": "San Francisco Bay Area, CA",
+      "metro": "SF Bay Area & Silicon Valley",
+      "region": "California",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "seattle",
+        "bellevue",
+        "redmond",
+        "kirkland",
+        "tacoma",
+        "everett",
+        "renton",
+        "bothell"
+      ],
+      "display_city": "Seattle, WA",
+      "metro": "Seattle Metro & Puget Sound",
+      "region": "Washington",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "denver",
+        "boulder",
+        "aurora co",
+        "lakewood",
+        "littleton",
+        "centennial",
+        "fort collins",
+        "colorado springs"
+      ],
+      "display_city": "Denver, CO",
+      "metro": "Denver-Boulder Metro",
+      "region": "Colorado",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "boston",
+        "cambridge ma",
+        "somerville",
+        "quincy",
+        "newton",
+        "waltham",
+        "framingham",
+        "worcester"
+      ],
+      "display_city": "Boston, MA",
+      "metro": "Greater Boston & Route 128",
+      "region": "Massachusetts",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "washington dc",
+        "washington d.c.",
+        "dc",
+        "arlington va",
+        "alexandria va",
+        "bethesda",
+        "silver spring",
+        "reston",
+        "mclean",
+        "tysons"
+      ],
+      "display_city": "Washington, D.C.",
+      "metro": "Washington DC Capital Region (DC, VA, MD)",
+      "region": "District of Columbia",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "atlanta",
+        "sandy springs",
+        "alpharetta",
+        "marietta",
+        "roswell",
+        "duluth ga",
+        "johns creek"
+      ],
+      "display_city": "Atlanta, GA",
+      "metro": "Metro Atlanta",
+      "region": "Georgia",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "miami",
+        "fort lauderdale",
+        "west palm beach",
+        "boca raton",
+        "coral gables",
+        "hollywood fl",
+        "hialeah"
+      ],
+      "display_city": "Miami, FL",
+      "metro": "South Florida Metro (Miami-Ft. Lauderdale-WPB)",
+      "region": "Florida",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "orlando",
+        "kissimmee",
+        "sanford",
+        "winter park"
+      ],
+      "display_city": "Orlando, FL",
+      "metro": "Greater Orlando & Central Florida",
+      "region": "Florida",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "tampa",
+        "st. petersburg fl",
+        "st petersburg fl",
+        "clearwater",
+        "sarasota"
+      ],
+      "display_city": "Tampa Bay, FL",
+      "metro": "Tampa Bay Area",
+      "region": "Florida",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "charlotte",
+        "concord nc",
+        "gastonia",
+        "huntersville"
+      ],
+      "display_city": "Charlotte, NC",
+      "metro": "Greater Charlotte Metro Area",
+      "region": "North Carolina",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "raleigh",
+        "durham",
+        "chapel hill",
+        "cary",
+        "research triangle"
+      ],
+      "display_city": "Raleigh-Durham, NC",
+      "metro": "Research Triangle Area",
+      "region": "North Carolina",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "nashville",
+        "franklin tn",
+        "murfreesboro",
+        "brentwood tn"
+      ],
+      "display_city": "Nashville, TN",
+      "metro": "Greater Nashville Metro Area",
+      "region": "Tennessee",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "memphis",
+        "germantown tn",
+        "collierville"
+      ],
+      "display_city": "Memphis, TN",
+      "metro": "Greater Memphis Area",
+      "region": "Tennessee",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "minneapolis",
+        "st. paul",
+        "st paul",
+        "twin cities",
+        "bloomington mn",
+        "plymouth mn"
+      ],
+      "display_city": "Minneapolis-St. Paul, MN",
+      "metro": "Twin Cities Metropolitan Area",
+      "region": "Minnesota",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "detroit",
+        "ann arbor",
+        "troy mi",
+        "dearborn",
+        "warren mi",
+        "southfield"
+      ],
+      "display_city": "Detroit, MI",
+      "metro": "Metro Detroit & Ann Arbor",
+      "region": "Michigan",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "pittsburgh",
+        "cranberry",
+        "monroeville"
+      ],
+      "display_city": "Pittsburgh, PA",
+      "metro": "Greater Pittsburgh Area",
+      "region": "Pennsylvania",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "columbus",
+        "dublin oh",
+        "westerville"
+      ],
+      "display_city": "Columbus, OH",
+      "metro": "Greater Columbus Metro Area",
+      "region": "Ohio",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "cleveland",
+        "akron",
+        "lakewood oh"
+      ],
+      "display_city": "Cleveland, OH",
+      "metro": "Greater Cleveland & Northeast Ohio",
+      "region": "Ohio",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "cincinnati",
+        "mason oh",
+        "covington ky"
+      ],
+      "display_city": "Cincinnati, OH",
+      "metro": "Greater Cincinnati Area (OH, KY, IN)",
+      "region": "Ohio",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "indianapolis",
+        "carmel in",
+        "fishers",
+        "bloomington in"
+      ],
+      "display_city": "Indianapolis, IN",
+      "metro": "Indianapolis Metro Area",
+      "region": "Indiana",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "kansas city",
+        "overland park",
+        "olathe"
+      ],
+      "display_city": "Kansas City, MO/KS",
+      "metro": "Kansas City Metropolitan Area",
+      "region": "Missouri",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "st. louis",
+        "st louis",
+        "chesterfield mo",
+        "clayton mo"
+      ],
+      "display_city": "St. Louis, MO",
+      "metro": "Greater St. Louis Metro Area",
+      "region": "Missouri",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "las vegas",
+        "henderson",
+        "north las vegas",
+        "reno",
+        "sparks"
+      ],
+      "display_city": "Las Vegas, NV",
+      "metro": "Las Vegas & Nevada Region",
+      "region": "Nevada",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "salt lake city",
+        "slc",
+        "provo",
+        "sandy",
+        "orem",
+        "lehi",
+        "silicon slopes"
+      ],
+      "display_city": "Salt Lake City, UT",
+      "metro": "Salt Lake City Metro & Silicon Slopes",
+      "region": "Utah",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "portland",
+        "beaverton",
+        "hillsboro",
+        "gresham",
+        "eugene",
+        "salem or"
+      ],
+      "display_city": "Portland, OR",
+      "metro": "Portland Metro & Silicon Forest",
+      "region": "Oregon",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "baltimore",
+        "columbia md",
+        "towson",
+        "annapolis"
+      ],
+      "display_city": "Baltimore, MD",
+      "metro": "Greater Baltimore Area",
+      "region": "Maryland",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "milwaukee",
+        "madison wi",
+        "waukesha",
+        "green bay"
+      ],
+      "display_city": "Milwaukee, WI",
+      "metro": "Milwaukee-Madison Region",
+      "region": "Wisconsin",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "albuquerque",
+        "santa fe",
+        "las cruces"
+      ],
+      "display_city": "Albuquerque, NM",
+      "metro": "Albuquerque-Santa Fe Region",
+      "region": "New Mexico",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "louisville",
+        "lexington"
+      ],
+      "display_city": "Louisville, KY",
+      "metro": "Louisville-Lexington Bluegrass Region",
+      "region": "Kentucky",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "oklahoma city",
+        "okc",
+        "tulsa",
+        "norman ok",
+        "edmond"
+      ],
+      "display_city": "Oklahoma City, OK",
+      "metro": "Oklahoma City-Tulsa Region",
+      "region": "Oklahoma",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "richmond",
+        "norfolk",
+        "virginia beach",
+        "chesapeake"
+      ],
+      "display_city": "Richmond, VA",
+      "metro": "Richmond-Hampton Roads Region",
+      "region": "Virginia",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "new orleans",
+        "baton rouge",
+        "metairie",
+        "lafayette la"
+      ],
+      "display_city": "New Orleans, LA",
+      "metro": "New Orleans-Baton Rouge Region",
+      "region": "Louisiana",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "birmingham",
+        "huntsville",
+        "montgomery",
+        "mobile"
+      ],
+      "display_city": "Birmingham, AL",
+      "metro": "Birmingham-Huntsville Tech Corridor",
+      "region": "Alabama",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "honolulu",
+        "oahu",
+        "maui"
+      ],
+      "display_city": "Honolulu, HI",
+      "metro": "Hawaiian Islands Region",
+      "region": "Hawaii",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "anchorage",
+        "fairbanks",
+        "juneau"
+      ],
+      "display_city": "Anchorage, AK",
+      "metro": "Anchorage Region",
+      "region": "Alaska",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "boise",
+        "meridian id",
+        "nampa"
+      ],
+      "display_city": "Boise, ID",
+      "metro": "Boise-Treasure Valley Region",
+      "region": "Idaho",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "des moines",
+        "cedar rapids",
+        "davenport"
+      ],
+      "display_city": "Des Moines, IA",
+      "metro": "Des Moines & Central Iowa",
+      "region": "Iowa",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "omaha",
+        "lincoln ne"
+      ],
+      "display_city": "Omaha, NE",
+      "metro": "Omaha-Lincoln Metro Area",
+      "region": "Nebraska",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "little rock",
+        "fayetteville ar",
+        "bentonville",
+        "springdale ar"
+      ],
+      "display_city": "Little Rock & NWA, AR",
+      "metro": "Northwest Arkansas & Little Rock",
+      "region": "Arkansas",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "wichita",
+        "topeka"
+      ],
+      "display_city": "Wichita, KS",
+      "metro": "Wichita Metro Area",
+      "region": "Kansas",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "jackson",
+        "gulfport",
+        "biloxi"
+      ],
+      "display_city": "Jackson, MS",
+      "metro": "Greater Jackson & Gulf Coast",
+      "region": "Mississippi",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "charleston",
+        "columbia sc",
+        "greenville sc",
+        "spartanburg"
+      ],
+      "display_city": "Charleston & Upstate, SC",
+      "metro": "Charleston-Greenville Region",
+      "region": "South Carolina",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "providence",
+        "warwick",
+        "cranston"
+      ],
+      "display_city": "Providence, RI",
+      "metro": "Greater Providence Area",
+      "region": "Rhode Island",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "hartford",
+        "stamford ct",
+        "new haven",
+        "bridgeport",
+        "greenwich ct"
+      ],
+      "display_city": "Hartford-Stamford, CT",
+      "metro": "Hartford & Fairfield County (NYC Metro)",
+      "region": "Connecticut",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "manchester",
+        "nashua",
+        "concord nh"
+      ],
+      "display_city": "Manchester, NH",
+      "metro": "Southern New Hampshire Region",
+      "region": "New Hampshire",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "burlington vt",
+        "south burlington"
+      ],
+      "display_city": "Burlington, VT",
+      "metro": "Greater Burlington Area",
+      "region": "Vermont",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "portland me",
+        "lewiston",
+        "bangor"
+      ],
+      "display_city": "Portland, ME",
+      "metro": "Greater Portland Area",
+      "region": "Maine",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "wilmington de",
+        "dover de",
+        "newark de"
+      ],
+      "display_city": "Wilmington, DE",
+      "metro": "Delaware Valley Region",
+      "region": "Delaware",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "billings",
+        "missoula",
+        "bozeman",
+        "helena"
+      ],
+      "display_city": "Billings-Bozeman, MT",
+      "metro": "Montana Urban Corridors",
+      "region": "Montana",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "fargo",
+        "bismarck",
+        "grand forks"
+      ],
+      "display_city": "Fargo, ND",
+      "metro": "Fargo-Moorhead Region",
+      "region": "North Dakota",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "sioux falls",
+        "rapid city"
+      ],
+      "display_city": "Sioux Falls, SD",
+      "metro": "Sioux Falls Region",
+      "region": "South Dakota",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "cheyenne",
+        "casper",
+        "laramie"
+      ],
+      "display_city": "Cheyenne, WY",
+      "metro": "Cheyenne-Laramie Corridor",
+      "region": "Wyoming",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "charleston wv",
+        "morgantown",
+        "huntington wv"
+      ],
+      "display_city": "Charleston-Morgantown, WV",
+      "metro": "West Virginia Metro Corridors",
+      "region": "West Virginia",
+      "country": "USA",
+      "country_code": "US"
+    },
+    {
+      "names": [
+        "san juan",
+        "bayamon",
+        "guaynabo",
+        "ponce",
+        "mayaguez"
+      ],
+      "display_city": "San Juan, PR",
+      "metro": "San Juan Metropolitan Area",
+      "region": "Puerto Rico",
+      "country": "USA",
+      "country_code": "US"
+    }
+  ]
+}

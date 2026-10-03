@@ -1,0 +1,19 @@
+{
+  "freshness_hours": 24,
+  "score_threshold": 60,
+  "cron_schedule": "30 8,11,14,17,20 * * *",
+  "cron_description": "5 times daily (8:30 AM, 11:30 AM, 2:30 PM, 5:30 PM, 8:30 PM)",
+  "work_type": "Open to All",
+  "country_scope": "AUTO",
+  "timezone": "America/Toronto",
+  "boards_enabled": {
+    "linkedin": true,
+    "canada_job_bank": true,
+    "adzuna": true,
+    "usajobs": true,
+    "jobicy": true,
+    "remotive": true,
+    "arbeitnow": true,
+    "himalayas": true
+  }
+}

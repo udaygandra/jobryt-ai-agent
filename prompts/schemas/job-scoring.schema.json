@@ -1,0 +1,39 @@
+{
+  "type": "object",
+  "properties": {
+    "key_matched_skills": {"type": "array", "items": {"type": "string"}},
+    "missing_skills": {"type": "array", "items": {"type": "string"}},
+    "disqualification_reasons": {"type": "array", "items": {"type": "string"}},
+    "experience_match_summary": {"type": "string"},
+    "why_this_fits": {"type": "string"},
+    "notes_concerns": {"type": "string"},
+    "reasoning": {"type": "string"},
+    "compensation_insight": {"type": "string"},
+    "company_tier": {"type": "string", "enum": ["FAANG_TOP_PRODUCT", "TOP_ENTERPRISE", "STRONG_STARTUP", "MID_TIER", "LOW_QUALITY", "UNKNOWN"]},
+    "work_type": {"type": "string", "enum": ["Remote", "Hybrid", "Onsite", "Unknown"]},
+    "breakdown": {
+      "type": "object",
+      "properties": {
+        "title_fit_score": {"type": "number"},
+        "skills_fit_score": {"type": "number"},
+        "seniority_fit_score": {"type": "number"},
+        "domain_fit_score": {"type": "number"}
+      },
+      "required": ["title_fit_score", "skills_fit_score", "seniority_fit_score", "domain_fit_score"]
+    }
+  },
+  "required": [
+    "key_matched_skills",
+    "missing_skills",
+    "disqualification_reasons",
+    "experience_match_summary",
+    "why_this_fits",
+    "notes_concerns",
+    "reasoning",
+    "compensation_insight",
+    "company_tier",
+    "work_type",
+    "breakdown"
+  ],
+  "additionalProperties": false
+}

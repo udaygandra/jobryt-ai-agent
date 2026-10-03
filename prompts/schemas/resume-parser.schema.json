@@ -1,0 +1,82 @@
+{
+  "type": "object",
+  "properties": {
+    "name": {"type": "string"},
+    "target_titles_inferred": {"type": "array", "items": {"type": "string"}},
+    "locations": {"type": "array", "items": {"type": "string"}},
+    "contact": {
+      "type": "object",
+      "properties": {
+        "email": {"type": "string"},
+        "phone": {"type": "string"},
+        "location": {"type": "string"},
+        "linkedin": {"type": "string"},
+        "github": {"type": "string"},
+        "status": {"type": "string"}
+      },
+      "required": ["email", "phone", "location", "linkedin", "github", "status"],
+      "additionalProperties": false
+    },
+    "summary": {"type": "string"},
+    "skills": {"type": "array", "items": {"type": "string"}},
+    "skills_familiar": {"type": "array", "items": {"type": "string"}},
+    "experience": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "role": {"type": "string"},
+          "project": {"type": "string"},
+          "company": {"type": "string"},
+          "dates": {"type": "string"},
+          "bullets": {"type": "array", "items": {"type": "string"}}
+        },
+        "required": ["role", "project", "company", "dates", "bullets"],
+        "additionalProperties": false
+      }
+    },
+    "education": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "degree": {"type": "string"},
+          "institution": {"type": "string"},
+          "dates": {"type": "string"}
+        },
+        "required": ["degree", "institution", "dates"],
+        "additionalProperties": false
+      }
+    },
+    "certifications": {"type": "array", "items": {"type": "string"}},
+    "projects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {"type": "string"},
+          "description": {"type": "string"},
+          "technologies": {"type": "array", "items": {"type": "string"}}
+        },
+        "required": ["name", "description", "technologies"],
+        "additionalProperties": false
+      }
+    },
+    "writing_sample": {"type": "string"}
+  },
+  "required": [
+    "name",
+    "target_titles_inferred",
+    "locations",
+    "contact",
+    "summary",
+    "skills",
+    "skills_familiar",
+    "experience",
+    "education",
+    "certifications",
+    "projects",
+    "writing_sample"
+  ],
+  "additionalProperties": false
+}

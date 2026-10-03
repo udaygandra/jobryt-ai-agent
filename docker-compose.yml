@@ -1,0 +1,85 @@
+# docker-compose.yml
+services:
+  n8n:
+    image: n8nio/n8n
+    command: start
+    restart: unless-stopped
+    ports:
+      - "${N8N_HOST_BINDING:-127.0.0.1}:${N8N_PORT:-5678}:5678"
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    environment:
+      - GENERIC_TIMEZONE=${TIMEZONE:-America/Toronto}
+      - TZ=${TIMEZONE:-America/Toronto}
+      - DATA_DIR=/data
+      - SCRIPTS_DIR=/scripts
+      - PROMPTS_DIR=/prompts
+      - WORKFLOWS_DIR=/workflows
+      - N8N_DEFAULT_BINARY_DATA_MODE=filesystem
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=false
+      - N8N_RESTRICT_FILE_ACCESS_TO=/data;/workflows;/scripts;/home/node/data;/prompts
+      - NODES_EXCLUDE=["n8n-nodes-base.executeCommand"]
+      - EXECUTIONS_DATA_PRUNE=true
+      - EXECUTIONS_DATA_MAX_AGE=168
+      - EXECUTIONS_DATA_SAVE_ON_SUCCESS=none
+      - N8N_PAYLOAD_SIZE_MAX=${MAX_UPLOAD_SIZE_MB:-5}
+      - MAX_UPLOAD_SIZE_MB=${MAX_UPLOAD_SIZE_MB:-5}
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+      - N8N_ENV_VARS_ALLOWED_EXPRESSIONS=*
+      - NODE_FUNCTION_ALLOW_BUILTIN=*
+      - NODE_FUNCTION_ALLOW_EXTERNAL=*
+      - CODE_ENABLE_STDOUT=true
+      - NODE_PATH=/usr/local/lib/node_modules:/home/node/.n8n/node_modules
+    env_file:
+      - ${ENV_FILE:-.env}
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ${DATA_DIR:-./data}:/data
+      - ${DATA_DIR:-./data}:/home/node/data
+      - ${DATA_DIR:-./data}:/home/node/.n8n/data
+      - ${WORKFLOWS_DIR:-./workflows}:/workflows
+      - ${SCRIPTS_DIR:-./scripts}:/scripts
+      - ${PROMPTS_DIR:-./prompts}:/prompts
+      - ./.env:/data/.env:ro
+
+  telegram-bridge:
+    image: n8nio/n8n
+    restart: unless-stopped
+    entrypoint: ["node", "/scripts/bot/telegram-bridge.js"]
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    environment:
+      - TZ=${TIMEZONE:-America/Toronto}
+      - MAX_UPLOAD_SIZE_MB=${MAX_UPLOAD_SIZE_MB:-5}
+      - N8N_URL=http://n8n:5678
+      - TELEGRAM_WEBHOOK_PATH=${TELEGRAM_WEBHOOK_PATH:-telegram-callback}
+      - DATA_DIR=/data
+      - SCRIPTS_DIR=/scripts
+      - PROMPTS_DIR=/prompts
+      - WORKFLOWS_DIR=/workflows
+      - NODE_PATH=/usr/local/lib/node_modules:/home/node/.n8n/node_modules
+    env_file:
+      - ${ENV_FILE:-.env}
+    volumes:
+      - n8n_data:/home/node/.n8n:ro
+      - ${SCRIPTS_DIR:-./scripts}:/scripts
+      - ${DATA_DIR:-./data}:/data
+      - ${PROMPTS_DIR:-./prompts}:/prompts
+      - ./.env:/data/.env:ro
+    depends_on:
+      - n8n
+
+  # Optional dedicated tunnel (only when CLOUDFLARE_TUNNEL_TOKEN is provided)
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    profiles: ["tunnel"]
+    restart: unless-stopped
+    command: ["tunnel", "run", "--token", "${CLOUDFLARE_TUNNEL_TOKEN:-none}"]
+    depends_on:
+      - n8n
+
+volumes:
+  n8n_data:

@@ -1,0 +1,18 @@
+{
+  "name": "Your Name",
+  "target_titles": ["Data Analyst", "Business Intelligence Analyst"],
+  "locations": ["Toronto, ON", "Remote Canada"],
+  "skills": ["SQL", "Power BI", "Python/pandas", "PowerShell", "GCP"],
+  "experience": [
+    {
+      "role": "Data Analyst",
+      "company": "Example Corp",
+      "dates": "2023–present",
+      "bullets": [
+        "Real achievement with a real metric",
+        "Another real achievement with a real metric"
+      ]
+    }
+  ],
+  "writing_sample": "Paste one real email or message you've written, so the humanize step can match your voice."
+}
