@@ -33,6 +33,9 @@ services:
       - CODE_ENABLE_STDOUT=true
       - N8N_PERSONALIZATION_ENABLED=false
       - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_BASIC_AUTH_ACTIVE=${N8N_BASIC_AUTH_ACTIVE:-false}
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER:-admin@jobryt.ai}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD:-SetAStrongProductionPasswordHere!}
       - NODE_PATH=/usr/local/lib/node_modules:/home/node/.n8n/node_modules
       - NODE_OPTIONS=--max-old-space-size=2048
       - WEBHOOK_URL=${WEBHOOK_URL:-http://localhost:5678/}

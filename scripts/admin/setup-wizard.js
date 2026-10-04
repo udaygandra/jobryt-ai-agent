@@ -63,6 +63,19 @@ async function runWizard() {
   const isProd = targetEnvFile === '.env.prod';
   console.log(`\nConfiguring target file: ${targetEnvFile}\n`);
 
+  let authActive = 'false';
+  let authUser = existingEnv.N8N_BASIC_AUTH_USER || 'admin@jobryt.ai';
+  let authPassword = existingEnv.N8N_BASIC_AUTH_PASSWORD || crypto.randomBytes(10).toString('hex');
+
+  if (isProd) {
+    console.log('──────────────────────────────────────────────────────────────────────');
+    console.log('🔒 PRODUCTION DASHBOARD AUTHENTICATION');
+    console.log('   Set login credentials to protect your n8n web dashboard on the public internet.');
+    console.log('──────────────────────────────────────────────────────────────────────');
+    authUser = await ask('n8n Dashboard Admin Username / Email', authUser);
+    authPassword = await ask('n8n Dashboard Admin Password', authPassword);
+  }
+
   // 2. Telegram Bot Token
   console.log('──────────────────────────────────────────────────────────────────────');
   console.log('📱 STEP 1 of 5: Telegram Bot Token (Required)');
@@ -136,9 +149,9 @@ N8N_PORT=${existingEnv.N8N_PORT || '5678'}
 N8N_HOST_BINDING=${existingEnv.N8N_HOST_BINDING || '127.0.0.1'}
 N8N_WORKFLOW_ID=${existingEnv.N8N_WORKFLOW_ID || 'master-bot'}
 # n8n Dashboard Authentication
-N8N_BASIC_AUTH_ACTIVE=${existingEnv.N8N_BASIC_AUTH_ACTIVE || 'false'}
-N8N_BASIC_AUTH_USER=${existingEnv.N8N_BASIC_AUTH_USER || 'admin@local.dev'}
-N8N_BASIC_AUTH_PASSWORD=${existingEnv.N8N_BASIC_AUTH_PASSWORD || crypto.randomBytes(8).toString('hex')}
+N8N_BASIC_AUTH_ACTIVE=${authActive}
+N8N_BASIC_AUTH_USER=${authUser}
+N8N_BASIC_AUTH_PASSWORD=${authPassword}
 # Adzuna API Credentials
 ADZUNA_APP_ID=${adzunaId}
 ADZUNA_APP_KEY=${adzunaKey}
