@@ -1,0 +1,7 @@
+{
+  "name": "Jobryt AI Agent",
+  "description": "Autonomous multi-board job discovery, scoring, and ATS resume tailoring application.",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

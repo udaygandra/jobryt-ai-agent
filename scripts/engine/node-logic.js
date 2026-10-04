@@ -224,7 +224,7 @@ function computeHeuristicScore(job, profileObj = null) {
   let overall = Math.round((skillsScore * 0.60) + (seniorityScore * 0.25) + (workplaceScore * 0.15));
   if (disqs.length > 0) overall = Math.min(overall, 45);
 
-  const minThreshold = (typeof process !== 'undefined' && process.env?.MIN_SCORE_THRESHOLD) ? Number(process.env.MIN_SCORE_THRESHOLD) : 60;
+  const minThreshold = (typeof process !== 'undefined' && process.env?.MIN_SCORE_THRESHOLD) ? (parseInt(process.env.MIN_SCORE_THRESHOLD, 10) || 60) : 60;
   const isQualified = overall > minThreshold && disqs.length === 0;
 
   return {
@@ -369,7 +369,7 @@ function runParseScore(item, profileObj = null) {
   let overall = Math.round(titleFit * 0.40 + skillsFit * 0.35 + seniorityFit * 0.15 + domainFit * 0.10);
   if (titleFit < 50 || disqs.length > 0) overall = Math.min(overall, 45);
 
-  const minThreshold = (typeof process !== 'undefined' && process.env?.MIN_SCORE_THRESHOLD) ? Number(process.env.MIN_SCORE_THRESHOLD) : 60;
+  const minThreshold = (typeof process !== 'undefined' && process.env?.MIN_SCORE_THRESHOLD) ? (parseInt(process.env.MIN_SCORE_THRESHOLD, 10) || 60) : 60;
   const shouldApply = overall > minThreshold && titleFit >= 50 && disqs.length === 0;
   const priorityLevel = overall >= 80 ? 'High' : overall >= 65 ? 'Medium' : 'Low';
   const safetyTier = overall >= 80 ? 'Strongest Application' : overall >= 65 ? 'Safe Opportunity' : 'Stretch Opportunity';

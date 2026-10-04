@@ -109,7 +109,7 @@ console.log('\n6. Testing Score Gate Node...');
 const passingJob = { overall_score: 85, should_apply: true };
 const boundaryJob = { overall_score: 60, should_apply: true };
 const failingJob = { overall_score: 55, should_apply: false };
-const threshold = (typeof process !== 'undefined' && process.env?.MIN_SCORE_THRESHOLD) ? Number(process.env.MIN_SCORE_THRESHOLD) : 60;
+const threshold = (typeof process !== 'undefined' && process.env?.MIN_SCORE_THRESHOLD) ? (parseInt(process.env.MIN_SCORE_THRESHOLD, 10) || 60) : 60;
 const isPassed = (j) => (j.overall_score > threshold && j.should_apply !== false);
 assert.strictEqual(isPassed(passingJob), true);
 assert.strictEqual(isPassed(boundaryJob), false); // 60 is not > 60

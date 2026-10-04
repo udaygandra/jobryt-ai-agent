@@ -33,7 +33,7 @@ const {
 const { getSettings, updateSettings } = require('../core/settings-helper');
 const { parseResume, roundYearsOfExperience } = require('../engine/resume-to-profile');
 
-const botToken = process.env.TELEGRAM_BOT_TOKEN;
+const botToken = (process.env.TELEGRAM_BOT_TOKEN || '').trim();
 
 // ── Telegram Transport Helper ────────────────────────────────────────────────
 async function sendTelegramMessage(chatId, text, replyMarkup = null) {
@@ -47,7 +47,7 @@ async function sendTelegramMessage(chatId, text, replyMarkup = null) {
     });
     const req = https.request({
       hostname: 'api.telegram.org',
-      path: `/bot${botToken}/sendMessage`,
+      path: `/bot${encodeURIComponent(botToken)}/sendMessage`,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -73,7 +73,7 @@ async function answerCallbackQuery(callbackQueryId, text = null) {
     });
     const req = https.request({
       hostname: 'api.telegram.org',
-      path: `/bot${botToken}/answerCallbackQuery`,
+      path: `/bot${encodeURIComponent(botToken)}/answerCallbackQuery`,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

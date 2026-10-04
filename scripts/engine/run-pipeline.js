@@ -86,27 +86,25 @@ async function sendTelegramMessage(text, replyMarkup = null) {
 
 async function sendJobAlertCard(job) {
   const jobUrl = job.redirect_url || job.job_url || job.apply_url || job.url || job.link || '';
-  const urlLine = jobUrl ? `\n🔗 <b>Job Link:</b> <a href="${jobUrl}">${jobUrl}</a>` : '';
-  const missingText = job.missing_skills?.length > 0
-    ? `\n⚠️ <b>Missing:</b> ${job.missing_skills.slice(0, 3).join(', ')}`
-    : '';
+  const urlLine = jobUrl ? `\n🔗 <b>Job Link:</b> <a href="${jobUrl}">${jobUrl}</a>\n` : '';
+  const tier = job.company_tier || 'Enterprise / Product';
+  const priority = job.priority_level || (job.score >= 80 ? 'High' : 'Medium');
+  const score = job.score || job.overall_score || 0;
+  const reasoning = job.reasoning || job.why_this_fits || 'Direct alignment with verified experience and skills.';
 
-  const insight = job.why_this_fits || job.reasoning || 
-    (job.key_matched_skills?.length ? `Skills matched: ${job.key_matched_skills.slice(0, 4).join(', ')}` : 'Strong profile alignment');
-
-  const msgText = `🎯 <b>New Qualified Job Alert (${job.score}/100)</b>\n\n` +
-    `<b>Role:</b> ${escapeHtml(job.title || 'Target Role')}\n` +
-    `<b>Company:</b> ${escapeHtml(job.company || 'Direct Employer')}\n` +
-    `<b>Location:</b> ${escapeHtml(job.location || 'Remote / Hybrid')}\n` +
-    `<b>Source:</b> ${escapeHtml(job.source || 'Direct')}${urlLine}\n\n` +
-    `💡 <b>Match Insight:</b> ${escapeHtml(insight)}${missingText}\n\n` +
-    `<i>Tap a button below to act:</i>`;
+  const msgText = `🎯 <b>HIGH MATCH FOUND:</b>\n\n` +
+    `<b>Role:</b> ${escapeHtml(job.title || 'Unknown')}\n` +
+    `<b>Company:</b> ${escapeHtml(job.company || 'Unknown')}\n` +
+    `<b>Tier:</b> ${escapeHtml(tier)}\n` +
+    `📈 <b>Score:</b> ${score}/100 (${escapeHtml(priority)} Priority)\n` +
+    urlLine +
+    `\n<b>Reasoning:</b>\n${escapeHtml(reasoning)}`;
 
   const keyboard = {
     inline_keyboard: [
       [
-        { text: '🚀 Apply (PDF Resume + Cover Letter)', callback_data: `APPLY:${job.id}` },
-        { text: '❌ Reject', callback_data: `REJECT:${job.id}` },
+        { text: '✅ Apply', callback_data: `APPLY:${job.id}`.slice(0, 64) },
+        { text: '❌ Reject', callback_data: `REJECT:${job.id}`.slice(0, 64) }
       ]
     ]
   };
@@ -188,7 +186,7 @@ async function runPipeline() {
     let scoredItem = null;
 
     try {
-      const prompt = buildDynamicScoringPrompt(profile, job.title, job.description);
+      const prompt = buildDynamicScoringPrompt(profile, job.title, job.description, job.company);
       const llmRes = await callLLMProvider({ prompt, provider: process.env.LLM_PROVIDER });
 
       if (llmRes.success) {
@@ -224,7 +222,10 @@ async function runPipeline() {
     await new Promise(r => setTimeout(r, 600));
   }
 
-  // 7. Update SQLite Database
+  // 7. Sort Descending by Score (Matching n8n Master Workflow)
+  scoredJobs.sort((a, b) => (b.score || b.overall_score || 0) - (a.score || a.overall_score || 0));
+
+  // 8. Update SQLite Database
   const qualified = scoredJobs.filter(j => (j.score || j.overall_score || 0) > minThreshold && j.should_apply !== false);
   const rejected = scoredJobs.filter(j => (j.score || j.overall_score || 0) <= minThreshold || j.should_apply === false);
 
