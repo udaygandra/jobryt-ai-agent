@@ -16,7 +16,15 @@
 
 const fs = require('fs');
 const path = require('path');
-const { DatabaseSync } = require('node:sqlite');
+let DatabaseSync;
+try {
+  DatabaseSync = require('node:sqlite').DatabaseSync;
+} catch (err) {
+  throw new Error(
+    `node:sqlite is unavailable in Node ${process.version}. ` +
+    'Jobryt requires Node.js >= 22.13 (use the pinned n8nio/n8n image in docker-compose.yml).'
+  );
+}
 const { getDataDir, readJsonFile, writeJsonFile } = require('./common-utils');
 
 let dbInstance = null;

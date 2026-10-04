@@ -1,7 +1,7 @@
 # docker-compose.yml
 services:
   n8n:
-    image: n8nio/n8n:1.82.1
+    image: n8nio/n8n:2.38.7
     command: start
     restart: unless-stopped
     ports:
@@ -54,7 +54,7 @@ services:
       - ${ENV_FILE:-.env}:/data/.env:ro
 
   telegram-bridge:
-    image: n8nio/n8n:1.82.1
+    image: n8nio/n8n:2.38.7
     restart: unless-stopped
     entrypoint: [ "node", "/scripts/bot/telegram-bridge.js" ]
     dns:

@@ -130,13 +130,16 @@ try {
 
 const envFile = process.env.ENV_FILE || '.env';
 const isProdMode = process.env.NODE_ENV === 'production' || envFile.includes('.env.prod');
+// Separate project names keep local and prod n8n volumes (and their encryption keys) isolated.
+const projectName = isProdMode ? 'jobryt-prod' : 'jobryt-public';
 const composeFiles = (isProdMode && fs.existsSync(path.join(rootDir, 'docker-compose.prod.yml')))
-  ? `--env-file ${envFile} -f docker-compose.yml -f docker-compose.prod.yml`
-  : `--env-file ${envFile} -f docker-compose.yml`;
+  ? `-p ${projectName} --env-file ${envFile} -f docker-compose.yml -f docker-compose.prod.yml`
+  : `-p ${projectName} --env-file ${envFile} -f docker-compose.yml`;
+const dc = `${composeCmd} ${composeFiles}`;
 
-console.log(`\n🐳 Starting containers via: ${composeCmd} ${composeFiles} up -d ...`);
+console.log(`\n🐳 Starting containers via: ${dc} up -d ...`);
 try {
-  execSync(`${composeCmd} ${composeFiles} up -d`, { cwd: rootDir, stdio: 'inherit' });
+  execSync(`${dc} up -d`, { cwd: rootDir, stdio: 'inherit' });
 } catch (err) {
   console.error('❌ Failed to launch Docker containers:', err.message);
   process.exit(1);
@@ -150,17 +153,17 @@ try {
   for (let i = 0; i < 30; i++) {
     try {
       // Inspect docker container status for restart loops / key mismatch crashes
-      const inspectState = execSync(`${composeCmd} ps n8n --format json`, { cwd: rootDir, encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] });
+      const inspectState = execSync(`${dc} ps n8n --format json`, { cwd: rootDir, encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] });
       if (inspectState.includes('"Restarting"') || inspectState.includes('Restarting (')) {
-        const logs = execSync(`${composeCmd} logs --tail 20 n8n`, { cwd: rootDir, encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] });
+        const logs = execSync(`${dc} logs --tail 20 n8n`, { cwd: rootDir, encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] });
         if (logs.includes('Mismatching encryption keys') || logs.includes('Failed to load command')) {
           console.warn('⚠️ [Auto-Recovery] Detected stale n8n encryption key mismatch. Resetting container volume...');
-          execSync(`${composeCmd} down -v`, { cwd: rootDir, stdio: 'ignore' });
-          execSync(`${composeCmd} up -d`, { cwd: rootDir, stdio: 'ignore' });
+          execSync(`${dc} down -v`, { cwd: rootDir, stdio: 'ignore' });
+          execSync(`${dc} up -d`, { cwd: rootDir, stdio: 'ignore' });
         }
       }
 
-      execSync(`${composeCmd} exec -T n8n node -e "const fs = require('fs'); if (!fs.existsSync('/home/node/.n8n/database.sqlite')) process.exit(1);"`, { cwd: rootDir, stdio: 'ignore' });
+      execSync(`${dc} exec -T n8n node -e "const fs = require('fs'); if (!fs.existsSync('/home/node/.n8n/database.sqlite')) process.exit(1);"`, { cwd: rootDir, stdio: 'ignore' });
       isReady = true;
       break;
     } catch (_) {
@@ -172,7 +175,7 @@ try {
     // 1. Ensure required NPM packages (xlsx, pdfkit) exist inside container
     try {
       execSync(
-        `${composeCmd} exec -T n8n sh -c "if [ ! -d /home/node/.n8n/node_modules/xlsx ] || [ ! -d /home/node/.n8n/node_modules/pdfkit ]; then echo '📦 Installing container dependencies (xlsx, pdfkit)...' && cd /home/node/.n8n && npm install --no-audit --no-fund xlsx pdfkit; fi"`,
+        `${dc} exec -T n8n sh -c "if [ ! -d /home/node/.n8n/node_modules/xlsx ] || [ ! -d /home/node/.n8n/node_modules/pdfkit ]; then echo '📦 Installing container dependencies (xlsx, pdfkit)...' && cd /home/node/.n8n && npm install --no-audit --no-fund xlsx pdfkit; fi"`,
         { cwd: rootDir, stdio: 'inherit' }
       );
     } catch (e) {
@@ -184,7 +187,7 @@ try {
       let synced = false;
       for (let attempt = 0; attempt < 15; attempt++) {
         try {
-          execSync(`${composeCmd} exec -T n8n node /scripts/admin/sync-n8n-db.js`, { cwd: rootDir, stdio: 'inherit' });
+          execSync(`${dc} exec -T n8n node /scripts/admin/sync-n8n-db.js`, { cwd: rootDir, stdio: 'inherit' });
           synced = true;
           break;
         } catch (_) {
@@ -193,7 +196,7 @@ try {
       }
       if (synced) {
         // Restart n8n container once so in-memory webhook listeners reload from SQLite
-        execSync(`${composeCmd} restart n8n`, { cwd: rootDir, stdio: 'ignore' });
+        execSync(`${dc} restart n8n`, { cwd: rootDir, stdio: 'ignore' });
         console.log('🔄 Waiting for n8n webhook listener to become active...');
       }
       
@@ -202,7 +205,7 @@ try {
       for (let attempt = 0; attempt < 20; attempt++) {
         try {
           const testRes = execSync(
-            `${composeCmd} exec -T telegram-bridge node -e "fetch('http://n8n:5678/webhook/telegram-callback', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'PING'})}).then(r => process.exit(r.status === 200 ? 0 : 1)).catch(() => process.exit(1));"`,
+            `${dc} exec -T telegram-bridge node -e "fetch('http://n8n:5678/webhook/telegram-callback', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'PING'})}).then(r => process.exit(r.status === 200 ? 0 : 1)).catch(() => process.exit(1));"`,
             { cwd: rootDir, stdio: 'ignore' }
           );
           webhookLive = true;
@@ -235,7 +238,7 @@ console.log('================================================================');
 console.log('💡 Live Telegram Bridge Logs (Press Ctrl+C to stop; Docker stays running):\n');
 
 // Stream live logs from the telegram-bridge container
-const parts = composeCmd.split(' ');
+const parts = dc.split(' ');
 const logProc = spawn(parts[0], [...parts.slice(1), 'logs', '-f', 'telegram-bridge'], {
   cwd: rootDir,
   stdio: 'inherit',

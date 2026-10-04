@@ -18,7 +18,13 @@
  *   node scripts/sync-n8n-db.js     (inside Docker container only)
  */
 
-const { DatabaseSync } = require('node:sqlite');
+let DatabaseSync;
+try {
+  DatabaseSync = require('node:sqlite').DatabaseSync;
+} catch (err) {
+  console.error(`❌ node:sqlite is unavailable in Node ${process.version}. Requires Node.js >= 22.13 (use the pinned n8nio/n8n image).`);
+  process.exit(1);
+}
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');

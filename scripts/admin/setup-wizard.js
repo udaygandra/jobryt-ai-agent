@@ -63,18 +63,10 @@ async function runWizard() {
   const isProd = targetEnvFile === '.env.prod';
   console.log(`\nConfiguring target file: ${targetEnvFile}\n`);
 
+  const currentKey = existingEnv.N8N_ENCRYPTION_KEY || crypto.randomBytes(16).toString('hex');
   let authActive = 'false';
   let authUser = existingEnv.N8N_BASIC_AUTH_USER || 'admin@jobryt.ai';
   let authPassword = existingEnv.N8N_BASIC_AUTH_PASSWORD || crypto.randomBytes(10).toString('hex');
-
-  if (isProd) {
-    console.log('──────────────────────────────────────────────────────────────────────');
-    console.log('🔒 PRODUCTION DASHBOARD AUTHENTICATION');
-    console.log('   Set login credentials to protect your n8n web dashboard on the public internet.');
-    console.log('──────────────────────────────────────────────────────────────────────');
-    authUser = await ask('n8n Dashboard Admin Username / Email', authUser);
-    authPassword = await ask('n8n Dashboard Admin Password', authPassword);
-  }
 
   // 2. Telegram Bot Token
   console.log('──────────────────────────────────────────────────────────────────────');
