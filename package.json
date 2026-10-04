@@ -9,6 +9,7 @@
   "scripts": {
     "setup": "node scripts/admin/setup-wizard.js",
     "start": "node scripts/bot/start-bot.js",
+    "start:prod": "ENV_FILE=.env.prod NODE_ENV=production node scripts/bot/start-bot.js",
     "reset": "node scripts/admin/reset-data.js",
     "republish": "node scripts/admin/optimize-master-workflow.js && docker compose exec -T n8n node /scripts/admin/sync-n8n-db.js",
     "restart": "docker compose restart n8n telegram-bridge",

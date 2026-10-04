@@ -53,8 +53,15 @@ async function runWizard() {
   console.log('='.repeat(70));
   console.log('This wizard will guide you through setting up your bot in simple steps.\n');
 
-  // 1. Auto-generate or preserve N8N_ENCRYPTION_KEY
-  const currentKey = existingEnv.N8N_ENCRYPTION_KEY || crypto.randomBytes(16).toString('hex');
+  // Environment mode selection
+  console.log('──────────────────────────────────────────────────────────────────────');
+  console.log('🌐 SETUP ENVIRONMENT');
+  console.log('1) Local Development (.env)');
+  console.log('2) Production / Cloud VPS / Oracle Cloud (.env.prod)');
+  const envModeChoice = await ask('Select Environment Mode (1 or 2)', '1');
+  const targetEnvFile = (envModeChoice === '2' || envModeChoice.toLowerCase().includes('prod')) ? '.env.prod' : '.env';
+  const isProd = targetEnvFile === '.env.prod';
+  console.log(`\nConfiguring target file: ${targetEnvFile}\n`);
 
   // 2. Telegram Bot Token
   console.log('──────────────────────────────────────────────────────────────────────');
@@ -174,27 +181,25 @@ WEBHOOK_URL=${existingEnv.WEBHOOK_URL || ''}
 CLOUDFLARE_TUNNEL_TOKEN=${existingEnv.CLOUDFLARE_TUNNEL_TOKEN || ''}
 `;
 
-  fs.writeFileSync(envPath, envContent, 'utf8');
+  const savePath = path.resolve(__dirname, '..', '..', targetEnvFile);
+  fs.writeFileSync(savePath, envContent, 'utf8');
 
   console.log('\n' + '='.repeat(70));
-  console.log('🎉 CONFIGURATION SAVED SUCCESSFULLY TO .env!');
+  console.log(`🎉 CONFIGURATION SAVED SUCCESSFULLY TO ${targetEnvFile}!`);
   console.log('='.repeat(70));
   console.log('\n┌' + '─'.repeat(68) + '┐');
-  console.log('│ 📋 HIGHLIGHT: Your configuration has been written to: .env         │');
-  console.log('│ 👉 Please copy and save your .env contents in a safe private place!│');
+  console.log(`│ 📋 HIGHLIGHT: Your configuration has been written to: ${targetEnvFile.padEnd(12, ' ')}│`);
+  console.log('│ 👉 Please copy and save your env contents in a safe private place! │');
   console.log('└' + '─'.repeat(68) + '┘\n');
   console.log('🐳 HOW N8N & THE BOT WORK (Zero-Configuration):');
   console.log('   • n8n runs automatically inside Docker alongside the Telegram bridge.');
   console.log('   • You DO NOT need to install, configure, or import workflows manually.');
-  console.log('   • Running "npm start" launches Docker, auto-syncs the master workflow,');
+  console.log(`   • Running "${isProd ? 'npm run start:prod' : 'npm start'}" launches Docker, auto-syncs the master workflow,`);
   console.log('     registers webhooks, and starts 24/7 automation in a single command.');
-  console.log('   • Optional: You can view n8n’s visual editor at http://localhost:5678');
-  console.log('     (If prompted, set any local password and click "Skip" on the license screen;');
-  console.log('      the Community edition is 100% free with all features included!).');
   console.log('──────────────────────────────────────────────────────────────────────');
   console.log('🚀 Next Steps to Launch:');
-  console.log('   1. Start your bot & n8n engine:');
-  console.log('      npm start');
+  console.log(`   1. Start your bot & n8n engine:`);
+  console.log(`      ${isProd ? 'npm run start:prod' : 'npm start'}`);
   console.log('   2. Open Telegram and send /start to your bot!');
   console.log('   3. Drop your resume file (.pdf/.docx) directly into the chat to onboard.');
   console.log('='.repeat(70) + '\n');
