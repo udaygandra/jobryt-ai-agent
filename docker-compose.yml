@@ -1,7 +1,7 @@
 # docker-compose.yml
 services:
   n8n:
-    image: n8nio/n8n
+    image: n8nio/n8n:1.82.1
     command: start
     restart: unless-stopped
     ports:
@@ -10,8 +10,8 @@ services:
       - 8.8.8.8
       - 1.1.1.1
     environment:
-      - GENERIC_TIMEZONE=${TIMEZONE:-America/Toronto}
-      - TZ=${TIMEZONE:-America/Toronto}
+      - GENERIC_TIMEZONE=${TIMEZONE:-UTC}
+      - TZ=${TIMEZONE:-UTC}
       - DATA_DIR=/data
       - SCRIPTS_DIR=/scripts
       - PROMPTS_DIR=/prompts
@@ -33,9 +33,6 @@ services:
       - CODE_ENABLE_STDOUT=true
       - N8N_PERSONALIZATION_ENABLED=false
       - N8N_DIAGNOSTICS_ENABLED=false
-      - N8N_BASIC_AUTH_ACTIVE=${N8N_BASIC_AUTH_ACTIVE:-false}
-      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER:-admin@jobryt.ai}
-      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD:-SetAStrongProductionPasswordHere!}
       - NODE_PATH=/usr/local/lib/node_modules:/home/node/.n8n/node_modules
       - NODE_OPTIONS=--max-old-space-size=2048
       - WEBHOOK_URL=${WEBHOOK_URL:-http://localhost:5678/}
@@ -57,14 +54,14 @@ services:
       - ${ENV_FILE:-.env}:/data/.env:ro
 
   telegram-bridge:
-    image: n8nio/n8n
+    image: n8nio/n8n:1.82.1
     restart: unless-stopped
-    entrypoint: ["node", "/scripts/bot/telegram-bridge.js"]
+    entrypoint: [ "node", "/scripts/bot/telegram-bridge.js" ]
     dns:
       - 8.8.8.8
       - 1.1.1.1
     environment:
-      - TZ=${TIMEZONE:-America/Toronto}
+      - TZ=${TIMEZONE:-UTC}
       - MAX_UPLOAD_SIZE_MB=${MAX_UPLOAD_SIZE_MB:-5}
       - N8N_URL=http://n8n:5678
       - TELEGRAM_WEBHOOK_PATH=${TELEGRAM_WEBHOOK_PATH:-telegram-callback}
@@ -91,10 +88,10 @@ services:
 
   # Optional dedicated tunnel (only when CLOUDFLARE_TUNNEL_TOKEN is provided)
   tunnel:
-    image: cloudflare/cloudflared:latest
-    profiles: ["tunnel"]
+    image: cloudflare/cloudflared:2024.6.1
+    profiles: [ "tunnel" ]
     restart: unless-stopped
-    command: ["tunnel", "run", "--token", "${CLOUDFLARE_TUNNEL_TOKEN:-none}"]
+    command: [ "tunnel", "run", "--token", "${CLOUDFLARE_TUNNEL_TOKEN:-none}" ]
     depends_on:
       - n8n
 

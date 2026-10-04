@@ -128,9 +128,15 @@ try {
   }
 }
 
-console.log(`\n🐳 Starting containers via: ${composeCmd} up -d ...`);
+const envFile = process.env.ENV_FILE || '.env';
+const isProdMode = process.env.NODE_ENV === 'production' || envFile.includes('.env.prod');
+const composeFiles = (isProdMode && fs.existsSync(path.join(rootDir, 'docker-compose.prod.yml')))
+  ? `--env-file ${envFile} -f docker-compose.yml -f docker-compose.prod.yml`
+  : `--env-file ${envFile} -f docker-compose.yml`;
+
+console.log(`\n🐳 Starting containers via: ${composeCmd} ${composeFiles} up -d ...`);
 try {
-  execSync(`${composeCmd} up -d`, { cwd: rootDir, stdio: 'inherit' });
+  execSync(`${composeCmd} ${composeFiles} up -d`, { cwd: rootDir, stdio: 'inherit' });
 } catch (err) {
   console.error('❌ Failed to launch Docker containers:', err.message);
   process.exit(1);

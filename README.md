@@ -106,6 +106,36 @@ npm start
 > 1. **Owner Setup Screen:** Enter any local email (e.g. `admin@local.dev`) and password. This is just a local password for your browser.
 > 2. **License Screen:** Simply click **"Skip"** or **"Continue with Community Edition"**. It is 100% free with all features included. No license key or payment is ever required.
 
+---
+
+### ☁️ Cloud VPS & Oracle Cloud Free Tier Hosting
+
+Want to run the bot 24/7 in the cloud so your laptop can stay turned off?  
+You can host this for **100% $0 cost** on an **Oracle Cloud Always Free Ampere A1.flexible VM (1 OCPU, 2 GB RAM)** or any Linux VPS (DigitalOcean, Hetzner, AWS EC2):
+
+1. **Clone Repo on Your Cloud Server:**
+   ```bash
+   git clone https://github.com/udaygandra/jobryt-ai-agent.git
+   cd jobryt-ai-agent
+   npm install
+   ```
+
+2. **Create Your `.env.prod` File on the Server (Choose Any 1 Method):**
+   - **Method A (Interactive Wizard):** Run `npm run setup` on the server and select **`2) Production / Cloud VPS / Oracle Cloud`**. It will prompt you for your keys and generate `.env.prod` automatically.
+   - **Method B (Copy Example Template):** Run `cp .env.prod.example .env.prod` on the server and edit it (`nano .env.prod`).
+   - **Method C (Copy from Local Machine via SCP):** Copy your local config file directly to the server:
+     ```bash
+     scp .env.prod ubuntu@<your-server-ip>:~/jobryt-ai-agent/.env.prod
+     ```
+
+3. **Launch in Production Mode:**
+   ```bash
+   npm run start:prod
+   ```
+   *This automatically uses `.env.prod` and applies `docker-compose.prod.yml` low-footprint resource caps (768 MB n8n heap / 256 MB bridge heap; 1 GB n8n memory limit / 384 MB bridge memory limit) so the entire stack runs smoothly on 2 GB RAM VMs without triggering OS OOM (Out-Of-Memory) killers.*
+
+---
+
 Open Telegram, message your bot `/start`, and you are ready for action!
 
 ---

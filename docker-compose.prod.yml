@@ -1,0 +1,22 @@
+# docker-compose.prod.yml — Production Resource & Memory Override
+# Optimized for Cloud VPS & Oracle Cloud Free Tier Ampere A1 (1–4 OCPU / 2–6 GB RAM)
+#
+# Usage:
+#   ENV_FILE=.env.prod docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+services:
+  n8n:
+    environment:
+      - NODE_OPTIONS=--max-old-space-size=768
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+
+  telegram-bridge:
+    environment:
+      - NODE_OPTIONS=--max-old-space-size=256
+    deploy:
+      resources:
+        limits:
+          memory: 384M
